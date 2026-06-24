@@ -18,7 +18,8 @@ weights/*.pt
 *.pt
 
 # Pipeline outputs
-output/
+output/*
+!output/.gitkeep
 output_video.mp4
 results_log.json
 
