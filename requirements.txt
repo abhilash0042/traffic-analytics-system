@@ -1,0 +1,16 @@
+torch
+torchvision
+ultralytics
+opencv-python
+easyocr
+deep-sort-realtime
+numpy
+pandas
+scipy
+matplotlib
+pyyaml
+roboflow
+kaggle
+yt-dlp
+datasets
+huggingface_hub

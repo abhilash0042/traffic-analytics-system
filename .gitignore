@@ -1,0 +1,32 @@
+# Environment & secrets
+.env
+venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Data & training artifacts (large — download/train locally)
+data/
+runs/
+models/*.pt
+
+# Pretrained weights (auto-downloaded by Ultralytics)
+weights/*.pt
+*.pt
+
+# Pipeline outputs
+output/
+output_video.mp4
+results_log.json
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Optional: keep PDFs local only (extracted text is in docs/paper_texts/)
+docs/papers/*.pdf
