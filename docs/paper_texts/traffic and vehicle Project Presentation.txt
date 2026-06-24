@@ -1,0 +1,102 @@
+--- Page 1 ---
+Traffic & Vehicle
+Analytics system
+
+--- Page 2 ---
+Research Planning &
+Infrastructure Inception
+2
+Hardware Architecture & Constraints
+CCTV / IP Cameras
+Dashcam units
+Edge GPU Device
+CPU System
+RAM & Storage
+Network Connectivity
+System Constraints
+Real-time processing requirement
+High GPU computation load
+Memory & storage limitations
+Network latency issues
+Weather & low-light conditions
+Vehicle occlusion in traffic
+Scalability for multiple cameras
+
+--- Page 3 ---
+Dataset
+Purpose
+Access Type
+Official Link
+Notes
+BrnoCompSpeed Speed
+Estimation
+Research Access
+BrnoCompSpeed
+GitHub
+Repository
+Contains
+evaluation tools,
+metadata, and
+download
+UA-DETRAC
+Vehicle
+Detection &
+Tracking
+Public
+Benchmark
+UA-DETRAC
+Official Site
+Large-scale
+vehicle tracking
+dataset. YOLO-
+UFPR-ALPR
+License Plate
+Recognition
+Academic Access
+UFPR-ALPR
+GitHub
+Repository
+Requires email
+request to
+authors using
+CCPD
+License Plate
+Edge Cases
+Open Source
+CCPD GitHub
+Repository
+Focus on CCPD-
+Weather, CCPD-
+Blur, and CCPD-
+Rotate subsets
+IDD (Indian
+Driving Dataset)
+Indian Traffic
+Detection
+Registration
+Required
+IDD Official
+Portal
+Hosted by IIIT
+Hyderabad.
+Registration
+3
+DATASET STRATEGY, AUGMENTATION & FUSION
+Primary Sources:
+ Augmentation & Sizing
+Real-world conditions degrade camera
+performance. The dataset is aggressively
+augmented using OpenCV to introduce:
+Expected Dataset Sizing & Split:
+ Volume: 50K–100k annotated object instances.
+Storage: ~250GB curated corpus.
+Distribution: 80% Training / 10% Validation / 10% Unsee
+Testing.
+
+--- Page 4 ---
+4
+
+--- Page 5 ---
+
+--- Page 6 ---
+Thank you

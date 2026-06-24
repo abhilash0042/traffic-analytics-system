@@ -1,0 +1,1334 @@
+--- Page 1 ---
+Received 21 August 2024, accepted 29 August 2024, date of publication 2 September 2024, date of current version 30 September 2024.
+Digital Object Identifier 10.1109/ACCESS.2024.3453298
+YOLOv8-FDD: A Real-Time Vehicle Detection
+Method Based on Improved YOLOv8
+XIAOJIA LIU1,2, YIPENG WANG
+1,2, DEXIN YU
+1, AND ZIMIN YUAN1
+1College of Navigation, Jimei University, Xiamen 361021, China
+2Marine Traffic Safety Institute, Jimei University, Xiamen 361021, China
+Corresponding author: Dexin Yu (yudx@jmu.edu.cn)
+This work was supported in part by Chinese National Social Science Major Program under Grant 23&ZD138.
+ABSTRACT Aiming at the serious problems of missed detection, false detection and difficult deployment of
+existing target detection algorithms when applied to traffic scenes, a vehicle detection model YOLOv8-FDD
+with lower parameter count and higher accuracy is proposed in this paper. First, an integrated Feature
+Sharing Detection Head is proposed to compress the amount of redundant parameters in the model head
+while ensuring the accuracy of the algorithm. Second, to enhance the interaction between regression
+features and classification features in the detection head, an Feature Dynamic Interaction Detection Head
+is further designed based on the Feature Sharing Detection Head. Third, the Dilation-wise Residual (DWR)
+module to strengthen the multi-scale feature extraction capability of the backbone network. Finally, the
+dynamic upsampling module DySample is utilized to improve the nearest neighbor interpolation upsampling
+in YOLOv8. Validation on the UA-DETRAC dataset shows that the proposed YOLOv8-FDD model’s
+parameter count is only 72.89% of the original YOLOv8, with computational complexity slightly increasing
+from 8.1 GFLOPs to 8.5 GFLOPs. The mAP50 and mAP50-95 improved by 0.7% and 1.3% respectively,
+with FPS consistently above 300. Additionally, on a self-built traffic surveillance dataset, YOLOv8-FDD
+outperformed the original algorithm. The error type statistics indicate that YOLOv8-FDD significantly
+reduces both vehicle false negatives and false positives, making it a high-accuracy, well-generalized real-
+time vehicle detection method.
+INDEX TERMS Deep learning, vehicle detection, YOLOv8, DWRSeg, DySample.
+I. INTRODUCTION
+Vehicle detection is a subclass of object detection that uses
+computer vision techniques to accurately identify the cat-
+egory and location of target vehicles in given images or
+videos. It is a crucial prerequisite for downstream tasks such
+as vehicle tracking and traffic counting, and a fundamental
+component of intelligent transportation systems [1]. Accu-
+rate and fast vehicle detection technology plays a significant
+role in enhancing traffic safety and improving traffic man-
+agement. Currently, there are two main challenges when
+applying object detection algorithms to traffic scenarios.
+Firstly, ensuring the accuracy of vehicle detection algorithms
+is essential. Traffic scenes present various complex environ-
+mental factors, such as lighting changes, weather conditions,
+The associate editor coordinating the review of this manuscript and
+approving it for publication was Zhongyi Guo
+.
+and occlusions, which require the robustness of the algo-
+rithms to be enhanced. This ensures that the algorithms can
+maintain high stability and reliability in these variable traffic
+environments. Secondly, the design of the model must bal-
+ance detection performance and algorithm complexity so that
+the algorithm can ultimately be deployed on edge devices
+with limited memory and computational power, enabling
+high-precision real-time vehicle detection. Therefore, there
+is an urgent practical need for the research and application of
+precise and lightweight vehicle detection technology [2].
+Currently, deep learning-based vehicle detection algo-
+rithms can be categorized into two-stage detection algorithms
+and single-stage detection algorithms according to the pro-
+cess. Two-stage algorithms first extract regions of interest
+(ROI) using a Region Proposal Network (RPN) and then
+predict the target category and location within these regions.
+Common algorithms include the R-CNN family of algorithms
+136280
+ 2024 The Authors. This work is licensed under a Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 License.
+For more information, see https://creativecommons.org/licenses/by-nc-nd/4.0/
+VOLUME 12, 2024
+
+--- Page 2 ---
+X. Liu et al.: YOLOv8-FDD: A Real-Time Vehicle Detection Method Based on Improved YOLOv8
+[3], [4], [5]. These algorithms have a more complex imple-
+mentation process and slower detection speed, making
+real-time traffic target detection difficult. To address these
+issues, single-stage object detection algorithms have been
+proposed. These algorithms use an end-to-end convolutional
+neural network to directly predict the target’s category and
+location information from the input image, compensating for
+the lack of real-time performance in two-stage algorithms.
+Common algorithms include the YOLO [6] series and SSD
+[7] algorithms. Due to their speed advantage, single-stage
+algorithms have been widely used for real-time vehicle detec-
+tion [8]. The YOLO series of algorithms have gone through
+iterations from early versions v2, v3, and v4 [9], and have
+now evolved to YOLOv5, YOLOv6 [10], YOLOv7 [11],
+YOLOv8, YOLOv9 [12], and YOLOv10 [13], proposed by
+different teams. These algorithms continuously improve the
+accuracy and speed of target detection. In recent years, the
+YOLO series of algorithms have been continuously improved
+for traffic detection tasks in order to meet the needs of the
+development of intelligent transport systems.
+Although new object detection algorithms are performing
+increasingly well on large public datasets, in traffic scenar-
+ios, factors such as vehicle occlusion and lighting variations
+can lead to severe issues of vehicle missed detections and
+false detections. To address these issues, researchers have
+considered enhancing the vehicle features learned by the net-
+work. For example, Song et al. [14] used MixUp and Mosaic
+methods for data augmentation to strengthen the learning of
+local vehicle features, and introduced the Efficient Channel
+Attention (ECA) mechanism in the backbone network to
+focus on useful features. They ultimately utilized a complex
+decoupling head for prediction. Huang et al. [15] proposed
+an improved DC-SPP-YOLO method based on Dense Con-
+nectivity (DC) and Spatial Pyramid Pooling (SPP), which
+strengthens feature propagation in the backbone network,
+ensures the network retains more information flow, and intro-
+duces an improved Spatial Pyramid Pooling (SPP) structure,
+enabling the network to more comprehensively learn vehicle
+features. Wang et al. [16] addressed the issue of difficult vehi-
+cle feature capture on foggy days by improving the backbone
+network using the Rep-ResNeXt reparameterization structure
+and constructing a new Feature Enhancement Module (FEM)
+that introduces an attention mechanism to help the network
+focus on useful features in foggy scenes. They achieved good
+detection results on the self-built Synscapes-Foggy dataset
+and the open fog dataset RTTS.
+The aforementioned studies have effectively enhanced
+the accuracy of vehicle detection but have also increased the
+complexity of the algorithms, making it difficult to ensure the
+models remain lightweight. To meet the deployment needs
+of traffic detection models, Alsanabani et al. [17] proposed
+an enhanced YOLOv4-Tiny model. This model reduces the
+floating-point operations in the backbone network while
+maintaining the captured vehicle feature information, thereby
+reducing the loss of accuracy caused by model lightweight-
+ing. Experiments show that this model outperforms the
+original in terms of inference speed and memory consump-
+tion, while maintaining almost the same level of accuracy.
+Feng and Yi [18] proposed a lightweight vehicle detection
+network based on an improved YOLOv5. By combining
+the detection head with the adaptive spatial feature fusion
+block (ASFF head), multi-scale feature fusion is improved.
+Extensive experiments on a small target vehicle dataset
+demonstrate the superiority and lightweight nature of the
+proposed method. Additionally, Guo and Zhang [19] used
+the MobileNetV3 feature extraction network instead of the
+YOLOv5 backbone network and further improved it with a
+coordinate attention module, significantly reducing the num-
+ber of model parameters.
+Although the above studies have made some contributions
+to the traffic detection task, there is still much room for
+improvement in terms of model accuracy or the number of
+parameters in the detection model, and there is no further
+research on how the improved algorithm affects the leakage
+and false detection situations. In this paper, we optimize the
+efficient and lightweight YOLOv8n model to further improve
+the model accuracy, reduce the number of model parameters,
+and validate the impact of the improved model on vehicle
+omission and false detection.
+The main contributions of this study are as follows:
+(i) Aiming at the problem that the amount of redundant
+parameters in YOLOv8 detection head is too large, this
+paper firstly designs a Feature Sharing Detection Head,
+which compresses the number of model parameters and
+computation amount while ensuring the lossless accu-
+racy as much as possible, and improves the inference
+speed of the model.
+(ii) Considering that the detection head lacks feature inter-
+action between the two tasks of classification and
+localization, we further design the Feature Dynamic
+Interaction Detection Head based on the Feature Shar-
+ing Detection Head to enhance the classification and
+localization ability of the model.
+(iii) In order to enhance the network features, we improve
+the feature extraction module for layers P4 and P5
+of the backbone network based on the Dilation-wise
+Residual (DWR) [20] module to enhance the informa-
+tion captured from the extensible sensory field in the
+deeper layers of the network.
+(iv) Improve the nearest neighbor interpolation up-sampling
+method in the original YOLOv8 using the dynamic
+up-sampling operator DySample [21] to strengthen the
+feature information after up-sampling.
+(v) The improvement effect of the proposed algorithm
+on the vehicle detection model is verified through
+detection result visualization, receptive field visual-
+ization, and error type analysis. Additionally, ablation
+experiments on private traffic surveillance data with
+significant variations in scenes and lighting are con-
+ducted to further validate the generalization capability
+of the proposed algorithm. Finally, we compare the
+proposed algorithm with other popular object detection
+VOLUME 12, 2024
+136281
+
+--- Page 3 ---
+X. Liu et al.: YOLOv8-FDD: A Real-Time Vehicle Detection Method Based on Improved YOLOv8
+algorithms to highlight its advantages in terms of accu-
+racy and model size.
+The remainder of this paper is organized as follows.
+Section II reviews related research. Section III describes
+the original YOLOv8 target detection algorithm. Section IV
+provides a detailed description of the improved methodology
+and the detection modeling framework used in this paper.
+Section V presents and discusses the related experimental
+design and results. The last section concludes the study and
+proposes further work.
+II. LITERATURE REVIEW
+The YOLO family of algorithms is nowadays widely used
+in traffic control systems due to its high accuracy and
+low cost. This section first briefly introduces the recent
+developments and changes in the YOLO family of target
+detection algorithms, and then analyzes the challenges and
+their optimization methods when applying the YOLO family
+of algorithms to real vehicle detection tasks.
+Initially, the YOLO series algorithms were proposed
+as single-stage object detection algorithms, successfully
+addressing the issue of poor real-time performance in two-
+stage algorithms. YOLOv4 [9] uses CSPDarknet53 as its
+backbone network. This residual connection structure effec-
+tively reduces the gradient vanishing problem by directly
+feeding features to the output layer through branches and
+also simplifies the model complexity. YOLOv5, developed
+by Ultralytics, integrates five different model sizes: N, S,
+M, L, and X. It uses CSPNet as its backbone network and
+continuously improves its internal modules. YOLOv6 [10]
+adopts an anchor-free design, simplifying the training and
+inference process. YOLOv7 [11] introduces the Efficient
+Layer Aggregation Network (E-ELAN), enhancing feature
+representation capabilities while maintaining computational
+efficiency. YOLOv8 optimizes the feature extraction module
+of YOLOv5 and adopts the same decoupled head design as
+YOLOX [22]. YOLOv9 [12] builds on YOLOv7 by intro-
+ducing Programmable Gradient Information (PGI) and the
+Generalized Efficient Layer Aggregation Network (GELAN)
+architecture. The latest YOLOv10 [13], developed by the
+Tsinghua University team, introduces a dual-label assignment
+strategy and optimizes feature extraction and multi-scale fea-
+ture fusion based on YOLOv8.
+In the study of the latest YOLO-based methods, DEMO-
+YOLO [23] designs a MAE-NAS network as the backbone
+part of the traditional YOLO algorithm based on Neural
+Architecture Search (NAS) and improves the Generalized-
+FPN (GFPN) to propose an efficient RepGFPN as the
+neck network to refine and fuse the high-level semantics
+and low-level spatial features, design ZeroHead to better
+balance the classification and regression tasks, and finally
+improve the detection performance of small models through
+knowledge distillation. Gold-YOLO [24] proposed a state-
+of-the-art Gather-and-Distribute (GD) mechanism that injects
+global information into higher-level networks through convo-
+lution and self-attention operations, thus efficiently realizing
+multi-scale information exchange, significantly enhancing
+information fusion at the neck of the network, and achieving
+a balance between latency and accuracy across all scale mod-
+els. YOLO-World [25] is a real-time, open-vocabulary target
+detection algorithm based on YOLOv8 by constructing a Pr-
+parmeteriable Vision-Langeuate Path Aggregation Network
+(RepVL-PAN) and Region-Text Contrast Loss to facilitate
+the interaction between visual and linguistic information,
+which reducing the dependence of traditional target detec-
+tion algorithms on predefined object classes, and improves
+the applicability of YOLO algorithms in open scenarios to
+a certain extent. Mamba-YOLO [26] introduces and opti-
+mizes a state space model (SSM), which effectively reduces
+the computational burden of the secondary complexity of
+the self-attention mechanism, and designs the LSBlock and
+RGBlock modules to more accurately capture the local
+dependencies of the image, which significantly enhances the
+robustness of the model. TP-YOLO [27] introduces a con-
+text converter and a full-dimensional dynamic convolution
+module into the backbone network of YOLOv8 to enhance
+its feature extraction capability, which is a lightweight
+attention-based network that maintains the accuracy of the
+target detection algorithm while significantly reducing the
+model size and model inference time.
+In summary, updates in the YOLO series algorithms mainly
+focus on network structure optimization and training strategy
+improvements. To address vehicle detection tasks in traffic
+scenarios, specific improvements tailored to meet particular
+requirements of the original algorithms are needed.
+On the one hand, vehicle detection in traffic scenarios
+is challenging due to the varying sizes of target vehicles
+caused by different shooting distances and vehicle types.
+Recognizing targets of different scales has become a major
+difficulty. Chen et al. [28] first approached the problem by
+segmenting images for detection using an adaptive cropping
+algorithm and then merging the segmented detection results
+with the global detection output. Zhang et al. [29] proposed
+the RT-YOLO model, which improves the residual module
+structure by enhancing the fusion of internal features within a
+single layer, thus boosting the feature extraction capability of
+the backbone network and improving the multi-scale feature
+pyramid structure to enrich the neck features. Li et al. [30]
+optimized the backbone feature network with bi-directional
+convolution operations and constructed an adaptive loss func-
+tion, resulting in the RES-YOLO model, which enhances the
+detection performance of the traditional YOLO algorithm.
+Padilla Carrasco et al. [31] considered replacing Focus layer
+with multi-scale modules and adopted a bi-directional feature
+pyramid network (Bi-FPN) to optimize multi-scale feature
+fusion, though this approach increases computational cost.
+In summary, aside from using data augmentation strategies,
+mainstream methods to address the inconsistency of target
+scales focus on enhancing the multi-scale feature extraction
+capability of the backbone network and strengthening the
+neck feature fusion, often at the expense of increased com-
+putational load.
+136282
+VOLUME 12, 2024
+
+--- Page 4 ---
+X. Liu et al.: YOLOv8-FDD: A Real-Time Vehicle Detection Method Based on Improved YOLOv8
+FIGURE 1. YOLOv8 network.
+On the other hand, the accuracy and stability of vehicle
+detection are highly sensitive to factors such as illumination
+intensity and density. The introduction of attention mech-
+anisms can help focus on useful features while reducing
+external interference. Yin et al. [32] adopted a polarization
+self-attention enhanced aggregated feature pyramid net-
+work, improving feature extraction and fusion capabilities
+in low-light scenarios. Wang et al. [33] proposed an atten-
+tion mechanism and efficient architecture lightweight-YOLO
+(AMEA-YOLO), utilizing an Enhanced Second-order Chan-
+nel Attention (Enhanced SOCA) module to enhance useful
+features and designed a lightweight backbone network to
+ensure model lightness while improving vehicle detection
+accuracy. Kang et al. [34] proposed a type-1 fuzzy attention
+(T1FA), introducing fuzzy entropy to re-weight the feature
+map, reducing uncertainty and helping the detector focus
+on the target center, thereby effectively improving vehicle
+detection accuracy. Chung et al. [35] designed an improved
+YOLOv7 model integrated with a parameter-free attention
+module SimAM, adding the SimAM mechanism at the end
+of ELAN, which strengthens the learned features without
+introducing additional parameters. The essence of attention
+mechanisms is to assign weights to feature maps, enhancing
+effective features and filtering out ineffective ones, as utilized
+in the design of the Feature Dynamic Interaction Detection
+Head in this paper.
+In summary, to optimize object detection algorithms for
+traffic target detection tasks, the key is to enhance the features
+learned by the network while minimizing the cost increase
+associated with improved accuracy. YOLOv8 continues
+the decoupled detection head design from YOLOX, which
+significantly increases the number of redundant parame-
+ters for tasks like vehicle detection, where the number
+of detection categories is relatively small. Therefore, the
+YOLOv8-FDD detection model proposed in this paper starts
+with the lightweight design of the detection head. It then
+uses the DWR multi-branch dilated convolution structure to
+strengthen the multi-scale features learned by the network.
+Finally, it optimizes the upsampling module of the original
+neck network to minimize the cost increase associated with
+feature enhancement.
+III. YOLOv8
+YOLOv8 is a high-efficiency target detection algorithm intro-
+duced by Ultralytics, which integrates the network structure
+and modules of many mainstream target detection algo-
+rithms, and has a strong potential for secondary development.
+YOLOv8 officially provides five models of different sizes,
+namely, YOLOv8n, YOLOv8s, YOLOv8m, YOLOv8l, and
+YOLO8x, for users to use. They have the same network
+structure, and the scale of the model is controlled by
+two parameters: depth_multiple and width_multiple. The
+VOLUME 12, 2024
+136283
+
+--- Page 5 ---
+X. Liu et al.: YOLOv8-FDD: A Real-Time Vehicle Detection Method Based on Improved YOLOv8
+FIGURE 2. YOLOv8-FDD network. The purple part is the improved module in
+this paper.
+experiments in this paper are based on the most lightweight
+YOLOv8n model for improvement, and its network is shown
+in Fig. 1.
+The backbone of YOLOv8 network utilizes a CSP-
+Darknet53 network structure consisting of multiple convo-
+lutional modules, C2f modules, and an SPPF module for
+expanding the receptive field. The feature information fed
+from the backbone to the neck network consists of P3, P4, and
+P5 feature maps, which are downsampled by factors of 8, 16,
+and 32, respectively. As the sampling multiplicity increases,
+the receptive field of the feature maps expands and contains
+richer global information.
+The neck of YOLOv8 network is used to fuse dif-
+ferent scale feature maps from the backbone network,
+so that the feature map input to the detection head con-
+tains multi-scale feature information. It consists of two
+feature fusion methods, FPN and PAN: FPN up-samples
+the low-resolution feature maps and fuses them with
+the medium-resolution feature maps from the backbone
+part to obtain multi-scale feature information, while PAN
+down-samples the high-resolution feature maps by using con-
+volution to realize bottom-up feature fusion. The combination
+of these two feature fusion methods forms a two-pathway
+neck network structure, which helps to realize multi-scale
+feature fusion perception.
+The detection head of YOLOv8 uses a decoupled header
+design similar to YOLOX, which implements the classifica-
+tion task and the detection task using two separate branches,
+where each branch consists of 2 convolutions with kernels for
+3 and 1 convolution with kernels for 1. Since separate Detect
+layers were used for the prediction of the P3, P4 and P5 layers
+of the feature maps, this resulted in too many parameters in
+the model header. To address this problem, two detection head
+structures with low parameter quantities are designed in this
+paper.
+IV. YOLOv8-FDD
+The YOLOv8n model has a good performance in terms of
+vehicle detection accuracy and speed, especially in terms of
+speed, which well meets the requirements of real-time vehicle
+detection. In this paper, we try to improve the YOLOv8n
+model by using the lightweight module structure to reduce
+the number of model parameters while further improving
+the model accuracy. Then, the features in the network are
+strengthened by expanding the receptive field and optimizing
+the up-sampling in order to improve the model accuracy,
+which improves the vehicle leakage and false detection.
+First, we designed a Feature Sharing Detection Head,
+which dramatically compresses the number of model head
+parameters by convolutional weight sharing and sharing one
+feature extractor for different detection layers. Then, consid-
+ering that the detection head lacks the interaction between
+regression features and classification features, we make fur-
+ther improvements based on the Feature Sharing Detection
+Head and propose a Feature Dynamic Interaction Detection
+Head to enhance the model’s classification and localization
+capabilities. On this basis, we utilize the DWR module to
+improve the feature extraction module in the deep layer of
+136284
+VOLUME 12, 2024
+
+--- Page 6 ---
+X. Liu et al.: YOLOv8-FDD: A Real-Time Vehicle Detection Method Based on Improved YOLOv8
+the backbone network, as a way to strengthen the feature
+information extracted from the expandable receptive field.
+Finally, the dynamic upsampling module DySample is used
+to improve the nearest neighbor interpolation upsampling
+method in the original algorithm. We name the improved
+algorithm YOLOv8-FDD, and its specific network structure
+is shown in Fig. 2.
+A. FEATURE SHARING DETECTION HEAD
+The YOLOV8 network head structure is designed using a
+decoupled head, which means that the target classification
+task and the bounding box regression task are handled sepa-
+rately by two independent branches. While this approach will
+enhance the feature extraction capability of the network to
+some extent, it will also mean that each detection head needs
+to use four convolutions with kernel 3 for feature extraction
+and two convolutions with kernel 1 for regression predic-
+tion and classification prediction. While YOLOv8 needs to
+complete the detection of the feature layers of P3, P4, and
+P5 scales respectively, which involves 12 convolutions with
+kernel 3 and 6 convolutions with kernel 1, which greatly
+increases the number of parameters, computation volume,
+and inference time. The number of parameters in the head
+of the YOLOv8n model accounts for 25% of the total num-
+ber of parameters. Therefore, in this paper, we first address
+the above problem by constructing a feature extractor using
+two weight-sharing convolutions and use it to complete the
+information extraction for three different scales of feature
+layers. Based on this approach, the integrated Feature Sharing
+Detection Head is proposed and its structure is shown in
+Fig. 3.
+FIGURE 3. Feature sharing detection head structure. The convolutions of
+the same color share parameters, except for the 3 convolutions used to
+adjust the number of channels, which do not share parameters.
+The Feature Sharing Detection Head first adjusts the num-
+ber of channels in the feature maps of the P3, P4, and P5
+layers and feeds them into the same feature extractor to
+learn features that are common to both the classification
+and regression tasks. The feature extractor consists of two
+parameter-sharing convolutions with kernel 3, which replaces
+the 12 convolutions with kernel 3 in the original detection
+head, effectively compressing the number of model param-
+eters. Then, the classification and regression predictions are
+accomplished by six convolutions with kernel 1, where three
+classification prediction convolutions and three regression
+prediction convolutions share weights, respectively. Finally,
+to cope with the problem of inconsistent target scales detected
+by each detection head, we use the Scale layer to adaptively
+scale the feature maps in the regression branch. The scaling
+layer is calculated as in (1).
+x′ = x × Scale
+(1)
+where x′ represents the output features, x represents the input
+features, and Scale is the learnable scaling factor.
+The key of Feature Sharing Detection Head is to sig-
+nificantly reduce the number of detection head parameters
+by utilizing weight sharing convolution and sharing feature
+extractors across different detection layers. As for the accu-
+racy loss caused by the lightweight design of the model,
+we found through extensive research that the GroupNorm
+(GN) approach has been proven to improve the localization
+and classification performance of the detection head [36].
+Therefore, we consider introducing GN on the convolution
+with kernel of 1 for adjusting the number of channels and on
+the convolution in the feature extractor to compensate for the
+detection accuracy. The process of GN is as follows:
+Assuming that the size of the input feature map x is N ×
+C × H × W, the GN first divides the number of channels
+C into G groups, and each g group contains CG = C/G
+channels. Then, for each group, the mean µg and variance
+σ 2
+g are calculated as in (2), (3).
+µg =
+1
+N × CG × H × W
+N
+X
+n=1
+X
+c∈Gg
+H
+X
+h=1
+W
+X
+w=1
+xnchw
+(2)
+σ 2
+g =
+1
+N × CG × H × W
+N
+X
+n=1
+X
+c∈Gg
+H
+X
+h=1
+W
+X
+w=1
+(xnchw −µg)2
+(3)
+Finally, each element is normalized and the scaling
+parameters γ and translation parameters β are learned
+autonomously. As in (4), (5).
+ˆxnchw = xnchw −µg
+q
+σ 2g + ε
+(4)
+ynchw = γ ˆxnchw + β
+(5)
+In (5), γ and β are learnable parameters of size (1, C,1,1).
+In summary, we can make the number of detection head
+parameters smaller and less computationally intensive while
+minimizing the loss of accuracy caused by lightweighting.
+B. FEATURE DYNAMIC INTERACTION DETECTION HEAD
+The compression of redundant parameters in the head of
+the YOLOV8 model has been achieved by the Feature Shar-
+ing Detection Head. However, both the original YOLOV8
+detection head and the Feature Sharing Detection Head use
+separate classification and localization branches, which leads
+to a lack of interaction between the two tasks, as shown
+VOLUME 12, 2024
+136285
+
+--- Page 7 ---
+X. Liu et al.: YOLOv8-FDD: A Real-Time Vehicle Detection Method Based on Improved YOLOv8
+FIGURE 4. Two types of detection heads.
+FIGURE 5. Feature dynamic interaction detection head structure.
+in Fig. 4(a). It will show inconsistency in the prediction,
+i.e., bounding box with high confidence have inaccurate pre-
+dicted positions, and those with accurate positions have low
+confidence [37]. Aiming at the above problems, we further
+improve on the Feature Sharing Detection Head and design
+the Feature Dynamic Interaction Detection Head, which
+enhances the dynamic interaction capability of different task
+features as much as possible before classification and regres-
+sion prediction. Its structure is shown in Fig. 5.
+Firstly, Feature Dynamic Interaction Detection Head elim-
+inates the process of channel number alignment using
+convolution by adjusting the number of feature map channels
+in the neck network. Second, in the feature extraction part, the
+serial structure of two 3∗3 convolutions is changed to resid-
+ual connection, which constitutes the Interactable Features
+Extractor. The above two approaches can further compress
+the model to balance the increase in the number of parameters
+due to the addition of the Feature Dynamic Interactor.
+Since the connected feature contains features used in both
+classification and regression tasks, we call this feature as
+Interactable Feature. After that, we input the Interactable
+Features into the two Feature Dynamic Interactor:
+For Regression Feature Dynamics Interactor, one branch
+autonomously learns the offset and mask from Interactable
+Features for deformable convolution(DCN). The other branch
+first segments the Interactable Features to learn the informa-
+tion that should be concerned by the regression prediction,
+and then utilizes the deformable convolution to combine the
+offset and mask from the previous branch to flexibly realize
+the dynamic interaction between the Interactable Features
+and the regression prediction features. The output formula for
+DCN is given in (6).
+y(p) =
+X
+k w(k) × x(p + pk + 1pk) × mk
+(6)
+In (6), y(p) is the value of the output feature map again
+at position p. w(k) is the weight of the convolution kernel at
+position k. x(p + pk) is the value of the element at position
+p + pk of the input feature map reposition. pk is the sampling
+position of the standard convolution kernel. 1pk and mk are
+offset and mask for autonomous learning using interactable
+features.
+For Classification Feature Dynamics Interactor, one branch
+uses Feature Dynamic Filter to dynamically select the inter-
+actable features, and the other branch also segments the
+136286
+VOLUME 12, 2024
+
+--- Page 8 ---
+X. Liu et al.: YOLOv8-FDD: A Real-Time Vehicle Detection Method Based on Improved YOLOv8
+FIGURE 6. Dilation-wise residual module.
+interactable features to learn the information that should be
+focused on in the classification task, and then connects the
+two branches to realize the dynamic selection of classification
+features. The formula of Feature Dynamic Filter is given
+in (7).
+x′ = σ(Conv2(ReLU(Conv1(x))))
+(7)
+σ and ReLU are the Sigmoid activation function and the
+ReLU activation function.
+Finally, the interacted regression and classification features
+are outputted to the predictor respectively to complete the
+detection. The prediction part is the same as the Feature Shar-
+ing Detection Head, which is composed of weight-sharing
+1∗1 convolution and Scale layers. The feature segmenta-
+tion module inside the two Feature Dynamics Interactor is
+designed with reference to the Layer Attention Mechanism
+[37], which is used to dynamically segment task-specific
+features from the interactable features. The Layer Attention
+Mechanism aims to compute task-specific features sepa-
+rately, as in (8).
+Xtask
+k
+= wk × Xinter
+k
+,
+∀k ∈{1, 2, . . . , N}
+(8)
+where wk is the k-th element of the learned layer atten-
+tion, Xinter
+k
+is interactable features and Xtask
+k
+is task-specific
+features.
+This adaptive Feature Dynamic Interaction Detection Head
+can effectively associate task-specific features with inter-
+actable features for dynamic interaction. It is used to replace
+the Feature Sharing Detection Head to further reduce the
+FIGURE 7. Modules of C2f and C2f_DWR.
+overall number of parameters while enhancing the model
+classification and localization capabilities.
+C. DILATION-WISE RESIDUAL
+Dilation-wise Residual (DWR) module from the DWRseg
+[20] network is an efficient two-step residual feature extrac-
+tion method (Regional Residualization-Semantic Residual-
+ization), which can be used to enhance the feature information
+extracted from scalable receptive fields from the higher levels
+of the network. The structure of the DWR module is shown
+in Fig. 6.
+The module structure is designed using residual connec-
+tivity, where a two-step method is used within the residuals
+to efficiently learn multi-scale contextual information, and its
+multi-branching structure is used to adapt to the requirements
+of different sizes of receptive fields in one layer.
+Step 1: Perform Region Residualization (RR) on the input
+features. Specifically, the input features are subjected to a
+combined operation of a 3∗3 convolution, Batch Normaliza-
+tion and ReLU activation function to obtain region residual
+features with different sizes for subsequent morphological
+filtering.
+Step 2: Semantic Residualization (SR). The regional resid-
+ual feature maps generated in the first step are divided into
+three branches, which are used to filter the regional features
+morphologically by using the hollow depth convolution with
+different null rates to extract the multi-scale semantic infor-
+mation, and then, the feature maps are passed through the BN
+layer in order to obtain the semantic residuals.
+This ‘‘RR-SR’’ approach intelligently learns the feature
+map based on the size of the receptive field in the second step
+in order to reverse match the receptive field. We will utilize
+the properties of the DWR module to enhance the multi-scale
+feature extraction capability of the YOLOv8 deep backbone
+network. Specifically, the DWR module is utilized to replace
+Bottleneck in the C2f module at layers P4 and P5 in the
+YOLOv8 backbone. The structure of the C2f module and the
+C2f_DWR module is shown in Fig. 7.
+VOLUME 12, 2024
+136287
+
+--- Page 9 ---
+X. Liu et al.: YOLOv8-FDD: A Real-Time Vehicle Detection Method Based on Improved YOLOv8
+FIGURE 8. DySample module.
+D. DySample
+The neck of the YOLOv8 network contains two Upsample
+layers, which serve to expand the small-size feature maps in
+the deeper layers of the backbone network in order to match
+the feature map sizes from deeper to shallower layers. How-
+ever, YOLOv8 employs the nearest neighbor interpolation
+upsampling method, i.e., the pixel values of the nearest neigh-
+bors are filled to enlarge the image size. The disadvantage
+of this method is that the pixel changes are discontinuous,
+resulting in the inability to observe the subtle changes in the
+acquired image, and the sampled image produces jagged and
+blurred performance. In this paper, we propose to replace the
+Upsample layer with a dynamic upsampling method based
+on point sampling (DySample) [21] to enhance the features
+after upsampling to improve the feature fusion effect at the
+neck of the network. The design of DySample avoids the
+computationally expensive dynamic convolution, and instead
+implements it with the essence of upsampling-point sam-
+pling. DySample process is shown in Fig. 8.
+DySample first uses a linear layer to map the input features
+as point-by-point positional biases, which are then summed
+with the original grid point coordinates to obtain new sam-
+pling positions, and resampled at these new positions to
+obtain the up-sampled features. In detail, since the sampled
+points generated from the same point have the same initial
+position, as in Fig. 9(a), this would ignore the mutual posi-
+tional relationship of the up-sampled points. So, DySample
+uses bilinear interpolation to initialize the sampled points,
+separating the initial positions so that they are evenly dis-
+tributed on the input feature map, as in Fig. 9(b). However,
+without constraining the range of the four sampling point
+offsets in Fig. 9(b), the offset ranges usually overlap, resulting
+in prediction artifacts. Therefore, in Fig. 9(c), a range factor
+is multiplied for the offsets to reduce the overlap. This solves
+the problem of the initial positions of the sampling points and
+their offset ranges.
+In addition, in order to maintain a low computational
+overhead while improving the performance of the module,
+DySample adopts a group up-sampling approach, i.e., the
+feature map is divided into four groups from the chan-
+nel dimension, and the biases generated in each group are
+FIGURE 9. Initial sampling positions and offset scopes.
+up-sampled separately. In each grouping, features share the
+same sampling set. The only additional computational cost
+added by this is the linear mapping when generating biases,
+which is negligible.
+V. EXAMPLE ANALYSIS
+A. DATASET
+1) UA-DETRAC DATASET
+UA-DETRAC is a large-scale vehicle detection and tracking
+dataset for real traffic scenarios produced by the University
+at Albany. The dataset consists of 10 hours of video captured
+by a Cannon EOS 550D camera at 24 different locations
+in Beijing and Tianjin, China. The video was recorded at
+25 frames per second and filmed at an angle close to the
+surveillance camera view. A total of 8,250 vehicles and
+1.21 million labeled bounding boxes of objects were man-
+ually labeled. vehicles were divided into four categories, i.e.,
+cars, buses, vans, and other vehicles. Weather conditions are
+categorized into four types, i.e., cloudy, nighttime, sunny, and
+rainy.
+In the experiments of this paper, in order to avoid the
+problem that the image changes between neighboring frames
+are too small in UA-DETRAC, as well as the problem that
+the shooting scenarios of the training set and the test set
+are quite different, we have done the following treatment
+to the UA-DETRAC dataset: the training set and the test
+set are merged, and 10,870 images are screened from the
+way of extracting one frame at certain frame intervals, and
+re-divisioned into 8,564 training sets and 2,306 validation sets
+at a ratio of 8:2, which is taken as the dataset used in this
+paper.
+136288
+VOLUME 12, 2024
+
+--- Page 10 ---
+X. Liu et al.: YOLOv8-FDD: A Real-Time Vehicle Detection Method Based on Improved YOLOv8
+TABLE 1. Comparison experiment of two lightweight detection heads.
+FIGURE 10. Example of a private traffic surveillance dataset.
+2) TRAFFIC SURVEILLANCE DATASETS
+Unlike the UA-DETRAC dataset, this private dataset is col-
+lected from real roadside traffic monitoring in both urban
+and rural areas of China. The vehicle targets include three
+categories: cars, buses, and trucks. The weather conditions are
+divided into sunny, rainy, and snowy, while the capture times
+are categorized into day and night. The dataset comprises
+9,846 images in the training set and 3,282 images in the vali-
+dation set. Examples of images from the traffic monitoring
+dataset are shown in Fig. 10. This dataset features a wide
+variety of capture scenes, making it better suited to reflect
+the generalization capability of the improved model and to
+verify its applicability to different vehicle detection tasks.
+B. EXPERIMENTAL ENVIRONMENT AND
+PARAMETERIZATION
+The environment for this experiment is Windows 11 64-bit
+operating system, Gen Intel(R) Core(TM) i5-12400F Central
+Processing Unit, and NVIDIA GeForce RTX 3060 Graphics
+Processing Unit. The experimental environment was built
+under python version 3.8, deep learning framework pytorch
+1.13.1, and CUDA version 11.6.
+None of the pre-trained models were used during the train-
+ing process. The input image size was set to 640 × 640 pixels,
+the model was trained for 100 epochs, and the batch size was
+16. The initial learning rate was 0.01. Stochastic Gradient
+Descent (SGD) was used for parameter optimization. The
+Mosaic data augmentation algorithm was applied throughout
+most of the training process but was turned off during the last
+10 epochs to avoid disrupting the images.
+C. EVALUATION INDICATORS
+We use the number of parameters and the amount of com-
+putation to evaluate the size of the model. The number
+of parameters reflects the spatial complexity of the model,
+and the amount of computation refers to the number of
+floating-point operations per second of the model. The model
+inference speed is reflected by the FPS indicator. It is worth
+noting that when calculating the inference speed of small-
+sized models, we ensure that the performance of hardware
+devices, such as graphics cards, is fully released, and ulti-
+mately calculate the FPS metrics based on the detection time
+of each batch. This approach allows for a fairer and more
+accurate comparison of the inference speeds of different sized
+models. Precision, Recall, mAP50, and mAP50-95 are used
+as evaluation metrics to assess the performance of the model.
+Among them, the Precision and Recall are used as the basic
+metrics, and the mean Average Precision calculated from
+them is used as the final evaluation metric to measure the
+recognition accuracy of the model. Their calculation formulas
+are as (9)-(11).
+Precision =
+TP
+TP + FP × 100%
+(9)
+recall =
+TP
+TP + FN × 100%
+(10)
+mAP =
+kP
+i=1
+APi
+k
+× 100%
+(11)
+where TP, FP, and FN are the number of correctly detected
+vehicles, the number of incorrectly detected vehicles, and the
+number of vehicles that were not correctly detected, respec-
+tively. APi is the average precision of a single category; mAP
+is the average of the APi of each category. mAP50 indicates
+the average value of the APi of all the detected categories
+when the IoU is set to 0.5; mAP50-95 refers to the average
+value of 10 mAP that take the IoU from 0.5 to 0.95, with step
+size of 0.05 as the mean of 10 mAP.
+D. EXPERIMENTAL RESULTS
+1) COMPARISON OF DETECTION HEADS
+In order to verify the effectiveness of the two lightweight
+detection heads on the vehicle detection task, we carry
+out comparison experiments between the YOLOv8n model
+VOLUME 12, 2024
+136289
+
+--- Page 11 ---
+X. Liu et al.: YOLOv8-FDD: A Real-Time Vehicle Detection Method Based on Improved YOLOv8
+TABLE 2. Results of ablation experiments.
+replacing the Feature Sharing Detection Head and Fea-
+ture Dynamic Interaction Detection Head, respectively, and
+the original YOLOv8n model to explore the degree of
+lightweighting and the change in accuracy of the two detec-
+tion heads. The YOLOv8n model replacing the Feature
+Sharing Detection Head is denoted as YOLOv8n_FSDH, and
+the model replacing the Feature Dynamic Interaction Detec-
+tion Head is denoted as YOLOv8n_FDIDH, and the results
+of the comparison experiments are shown in Table 1.
+The experimental results show that the number of
+YOLOv8n_FSDH model parameters is only 78.6% of the
+original YOLOv8n, of which the number of detection head
+parameters is only 14.3% of the original one, and the compu-
+tation amount is reduced from 8.1GFLOPs to 6.5GFLOPs,
+and the model’s inference speed is improved. In terms of
+accuracy, mAP50 is improved from 97.1% to 97.4%, but
+mAP50-95 is reduced by 0.3%. The above data show that
+Feature Sharing Detection Head can effectively reduce the
+number of model parameters by sharing a set of detection
+head parameters and convolutional weights across different
+detection layers, and the introduction of GN compensates
+for the loss of accuracy brought by the lightweight design,
+so that mAP50 can even be improved. It can be seen that the
+Feature Sharing Detection Head is indeed an effective model
+lightweighting method for datasets such as UA-DETRAC,
+where the classification task is not complicated.
+Since YOLOv8n_FDIDH adjusts the number of feature
+map channels input to the detection head right at the neck
+of the network, it makes its overall model parameter count
+still smaller than that of YOLOv8n_FSDH, which is only
+74.5% of the original YOLOv8 model parameter count. Due
+to the introduction of Feature Dynamic Interactor, the number
+of detection head parameters is slightly larger than that of
+YOLOv8n_FSDH, but it is still only 27.5% of that of the
+original model, and the amount of computation is slightly
+improved compared with that of the YOLOv8n model, with
+a slight decrease in the inference speed. As for the accuracy,
+mAP50 is improved from 97.1% to 97.6%, and mAP50-95
+is improved from 83.6% to 84.1%. It can be seen that even
+though we are using a lightweight design in the model head,
+the enhanced ability to interact with the classification and
+regression features has led to a more significant improvement
+in the final detection accuracy.
+2) ABLATION EXPERIMENTS
+Based
+on
+the
+above
+experiments,
+we
+selected
+the
+YOLOv8n_FDIDH model for further optimization, com-
+bined with the DWR module, DySample, and the classical
+CARAFE upsampling method, and did the ablation study
+shown in Table 2.
+On the basis of YOLOv8n_FDIDH, we first use the DWR
+module to improve the C2f module at layers p4 and p5 in
+the backbone network, and the experimental results show
+that while the number of parameters and computation are
+reduced, the mAP50-95 is improved from 84.1% to 84.7%,
+and the mAP50 and the FPS are basically unchanged. Then,
+we compare the DySample used in this paper with the
+classical CARAFE up-sampling method on the basis of
+YOLOv8n_IFDA. the DySample module is better than the
+classical CARAFE up-sampling module in both model size
+and accuracy metrics, and the inference speed of CARAFE
+is much slower compared to that of DySample, so we choose
+the DySample as the up-sampling module in the algorithm of
+this paper. Finally, we tested the YOLOv8n_FDIDH model
+combining DWR and DySample, which achieves the opti-
+mal detection accuracy, with mAP50 reaching 97.8% while
+mAP50-95 reaches 84.9%, and the number of parameters
+of the model is only 72.89% of that of YOLOv8n, and the
+computation amount slightly increases from 8.1 GFLOPs to
+8.5 GFLOPs, and the inference speed is slightly decreased
+mainly due to the influence of Feature Dynamic Interac-
+tion Detection Head, but it is still stabilized at more than
+300 frames, which is able to satisfy the requirement of
+real-time vehicle detection well. We chose to use this model
+as the final improved algorithm in this paper and named it
+YOLOv8-FDD.
+In addition, we also utilized the following methods to
+further validate the improved effect of the proposed model
+in this paper on the vehicle detection task:
+i) Visualization of Detection Results: We applied both
+the original YOLOv8 algorithm and the proposed YOLOv8-
+FDD algorithm to detect objects in the UA-DETRAC dataset,
+136290
+VOLUME 12, 2024
+
+--- Page 12 ---
+X. Liu et al.: YOLOv8-FDD: A Real-Time Vehicle Detection Method Based on Improved YOLOv8
+FIGURE 11. Comparison of detection results between YOLOv8 and YOLOv8-FDD. The first row of
+each set of plots shows the detection results of the YOLOv8n model and the second row shows the
+detection results of the YOLOv8-FDD model.
+showcasing some examples with significant differences in
+detection results in Fig. 11. In Fig. 11, the first row of
+each set of images corresponds to the results of the orig-
+inal YOLOv8 algorithm, and the second row corresponds
+to the results of the YOLOv8-FDD algorithm. Green, red,
+and blue bounding boxes represent true positives (TP), false
+negatives (FN), and false positives (FP). The visualization of
+the detection results indicates that the improved algorithm
+shows enhancements in handling general false positive cases,
+misdetections in dense vehicle areas, incorrect identifications
+VOLUME 12, 2024
+136291
+
+--- Page 13 ---
+X. Liu et al.: YOLOv8-FDD: A Real-Time Vehicle Detection Method Based on Improved YOLOv8
+FIGURE 12. Visualization of the receptive field.
+TABLE 3. Statistics on detection error types.
+of non-target objects, and the recognition of small distant
+vehicles.
+ii) Visualization of the receptive field: since the unique
+multi-branch structure of the DWR module can strengthen the
+feature information captured from the scalable receptive field
+in the deep layer of the backbone network, we use the method
+in the literature [38] to visualize and compare the receptive
+fields of the layers 6, 8, and 9 in the YOLOv8n and YOLOv8-
+FDD models, and the results are shown in Fig. 12. From the
+figure, it can be seen that the receptive fields of layers P4
+and P5 are significantly enlarged after the introduction of the
+DWR module.
+iii) Statistics of Detection Error Types: In order to have
+a more precise understanding of the vehicle detection effect
+of the improved model, we firstly counted the number of
+True Positive (TP), False Positive (FP) and False Nega-
+tive (FN) occurrences in the prediction of YOLOv8n and
+YOLOv8-FDD. Secondly, the detection errors occurring in
+the experiments of this paper are categorized as follows
+according to the six types of detection errors proposed in the
+literature [39]:
+• Classification error (Cls): the prediction box is positioned
+correctly but the prediction category is wrong.
+• Locate error (Loc): the prediction category is correct but
+the prediction box is located incorrectly.
+• Both classification and localization error (Both): the
+prediction category is wrong and the prediction frame is
+positioned incorrectly.
+• Duplicate Detection Error (Dupe): Both classification
+and localization are correctly predicted, but there exists
+another higher scoring predictor box that already matches the
+ground truth (GT).
+• Background error (Bkg): predicted background as
+foreground.
+136292
+VOLUME 12, 2024
+
+--- Page 14 ---
+X. Liu et al.: YOLOv8-FDD: A Real-Time Vehicle Detection Method Based on Improved YOLOv8
+TABLE 4. Results of ablation experiments on private traffic monitoring datasets.
+FIGURE 13. Visualization of detection results.
+TABLE 5. Results of comparative experiments.
+• Miss Detection Error (Miss): undetected GT.
+Finally, we utilize the method proposed in the literature
+[39] to calculate the impact of each error type on the mAP,
+i.e., we define a corresponding Oracle for each error type
+to fix the error and subtract from the AP before fixing the
+corresponding type of error from the APO after fixing it to
+obtain the 1APO. thus, we analyze the impact of fixing the
+corresponding type of error on the detector performance. the
+1APO is calculated as in (12).
+1APO = APO −AP
+(12)
+The number of TPs, FPs, and FNs and the DAP values for
+the six error types occurring in the YOLOv8n and YOLOv8n-
+FDD predictions are shown in Table 3.
+From the results of TP, FP, and FN statistics, it can be found
+that the number of correct samples predicted has increased
+and the number of missed detections has decreased. For the
+most difficult vehicle classification task, the number of PNs
+decreased from 2166 to 1903. The detection of all aspects of
+the improved model is significantly optimized. Meanwhile,
+it can also be seen from the results of the 1APO that the clas-
+sification errors occurring during the detection of this dataset
+have the greatest impact on the mAP, and after the improve-
+ment of the original algorithm, the classification errors have
+been significantly improved. And the 1APO values of the first
+five error types are reduced. Although the effect of missed
+detection errors on the mAP value has slightly increased, the
+results from the statistics show that the missed detection has
+indeed been reduced.
+VOLUME 12, 2024
+136293
+
+--- Page 15 ---
+X. Liu et al.: YOLOv8-FDD: A Real-Time Vehicle Detection Method Based on Improved YOLOv8
+TABLE 6. Ablation experiments on YOLOv8-FSDH.
+3) ABLATION EXPERIMENTS ON THE TRAFFIC MONITORING
+DATASET
+Although the improved algorithm achieved good detection
+performance on the public UA-DETRAC dataset, the fixed
+scenarios of this dataset make it difficult to demonstrate the
+generalization capability of the improved model. To further
+verify the feasibility of the proposed model on other vehicle
+detection tasks, we conducted ablation experiments on a pri-
+vate traffic monitoring dataset. This dataset features diverse
+scenarios, weather conditions, and lighting conditions, pro-
+viding a better reflection of the model’s generalization
+performance. Additionally, due to the higher training dif-
+ficulty of this dataset, we increased the training epochs to
+200 to ensure the model’s training results converged, while
+keeping other parameters unchanged. The results of the abla-
+tion experiments are shown in Table 4.
+The experimental results on the private dataset demonstrate
+that the three proposed improvements are still effective for
+vehicle detection tasks with significant scene variations. The
+improved model achieved a 0.2% increase in mAP50 and
+a 0.8% increase in mAP50-95. Additionally, because the
+private dataset contains only three detection categories, the
+number of parameters in the model is slightly reduced com-
+pared to the model in Experiment 1, while the detection speed
+remains almost the same. We have selected some visualized
+detection results, as shown in Fig. 13. Even when faced with
+images with severe camera distortion or in harsh environ-
+ments, the proposed algorithm still ensures good detection
+performance.
+4) COMPARISON EXPERIMENT OF DIFFERENT ALGORITHMS
+We compared the algorithm proposed in this paper with
+current mainstream object detection algorithms, includ-
+ing YOLOv5n (V7.0), YOLOv6n, YOLOv7, YOLOv8n,
+YOLOv9s, YOLOv10n, transformer-based RT-DETR, and
+the classical two-stage algorithm Faster RCNN. These algo-
+rithms were all trained on the processed UA-DETRAC
+dataset without using pre-trained weights. Except for the
+YOLOv7 and RT-DETR algorithms, which had a batch size
+of 8 during training (due to the large computational load), all
+other hyperparameters remained unchanged. The comparison
+results are shown in Table 5, where the Parameters column
+represents the model parameters in million.
+Among the compared algorithms, YOLOv7 and YOLOv9s
+achieved the highest detection accuracy, but their model sizes
+are significantly larger than the YOLOv8-FDD algorithm
+proposed in this paper, and their inference speeds are less
+than half of our algorithm’s. Specifically, the YOLOv7 model
+has a computational complexity of 105.2 GFLOPs and a
+parameter count nearly 17 times that of our algorithm, mak-
+ing it unsuitable for practical vehicle detection deployment.
+The two-stage Faster R-CNN target detection algorithm out-
+performs YOLOv5 and YOLOv6 in terms of accuracy, but
+falls short when compared to the newer YOLO series algo-
+rithms. Its parameter count is as high as 41.364 million, and
+its computational complexity is much higher than that of
+single-stage detection algorithms, with an inference speed
+of only 50.3 frames per second, making it similarly unsuit-
+able for real-time vehicle detection tasks. The YOLOv8-FDD
+model outperforms other algorithms in detection accuracy
+metrics and excels in terms of parameter count, computa-
+tional complexity, and inference speed, effectively balancing
+detection accuracy and model size. Notably, the RT-DETR
+algorithm performed poorly on this dataset, with the lowest
+accuracy, a model size comparable to YOLOv7, and an infer-
+ence speed of only 47.5 frames per second, indicating that
+significant improvements are needed for it to be viable for
+vehicle detection tasks.
+5) ADDITIONAL EXPERIMENTS ON YOLOv8N_FSDH
+Although the YOLOv8n model replacing the Feature Shar-
+ing Detection Head is not used in this paper for further
+improvement as the final algorithm, we have likewise per-
+formed additional ablation experiments on it using DWR and
+DySample to verify the usability of this detection head.
+The experimental results show that although the Feature
+Sharing Detection Head is a lightweight detection head, the
+loss of detection accuracy is not serious for the detection task
+of UA-DETRAC which has fewer categories, and even the
+mAP50 increases due to the introduction of GN. In the above
+experiments the detection effect is optimized when both the
+DWR module and DySample are introduces, the inference
+speed reaches 417.9 frames per second while the number of
+parameters and the computation amount are greatly reduced.
+mAP50 is improved by 0.4%, and mAP50-95 is basically
+unchanged. This is enough to prove the usability of this
+136294
+VOLUME 12, 2024
+
+--- Page 16 ---
+X. Liu et al.: YOLOv8-FDD: A Real-Time Vehicle Detection Method Based on Improved YOLOv8
+detection head, and has the potential of secondary innovation.
+If paired with pruning and other methods can be used to
+compress the size of the model to a greater extent.
+VI. CONCLUSION
+In this paper, we propose a target detection method based
+on the improved YOLOv8n model for the vehicle detec-
+tion task in traffic scenes. In the proposed method, firstly,
+a Feature Sharing Detection Head is designed to address
+the problem of large number of parameters in the head of
+the YOLOv8 model, which maintains the accuracy basi-
+cally unchanged while reducing the number of parameters
+and computation significantly. Then, considering that both
+the original YOLOv8 detection head and the Feature Shar-
+ing Detection Head ignore the feature interaction between
+the classification and regression tasks, we design a Feature
+Dynamic Interaction Detection Head to enhance the classi-
+fication and localization ability of the model (through the
+Feature Dynamic Interactors). On this basis, we improve
+the module of YOLOv8 backbone network deep layer by
+utilizing the characteristics of DWR multi-scale feature cap-
+ture, which makes the model computation and parameter
+counts slightly reduced while the accuracy is improved.
+Finally, the dynamic upsampling module DySample is used
+to optimize the nearest neighbor interpolation upsampling
+method in the original YOLOv8. We refer to the improved
+model as YOLOv8-FDD and validated it on the filtered
+UA-DETRAC dataset. The results show that the YOLOv8-
+FDD model’s parameter count is only 72.89% of the original
+YOLOv8, with computational complexity slightly increasing
+from 8.1 GFLOPs to 8.5 GFLOPs. The mAP50 improved
+from 97.1% to 97.8%, and the mAP50-95 increased from
+83.6% to 84.9%. The detection speed remained consistently
+above 300 fps, effectively meeting the requirements for
+real-time vehicle detection.
+Additionally, we conducted a deeper analysis of the
+improvements in vehicle detection performance of YOLOv8-
+FDD compared to the original YOLOv8n model (through
+methods such as detection result visualization, receptive field
+visualization, false detection type statistics, and generaliza-
+tion performance verification on a private traffic surveillance
+dataset). The results indicate that the proposed algorithm
+effectively reduces both vehicle false negatives and false
+positives. In the future, we will further optimize the network
+model to enhance its accuracy and inference speed, enabling
+better application in practical vehicle detection tasks.
+REFERENCES
+[1] M. Li, Z. Lin, and Y. Q. Yi, ‘‘A review of vehicle target detection algo-
+rithms under computer vision,’’ Comput. Eng. Appl., vol. 22, pp. 20–28,
+May 2024.
+[2] X. Kong, J. Zhang, L. Deng, and Y. Liu, ‘‘Research progress of vehicle
+detection and parameter recognition based on machine vision,’’ Chin.
+J. Highway, vol. 34, pp. 13–30, 2021.
+[3] R. Girshick, J. Donahue, T. Darrell, and J. Malik, ‘‘Rich feature hierarchies
+for accurate object detection and semantic segmentation,’’ presented at the
+Proc. IEEE Conf. Comput. Vis. Pattern Recognit., Jun. 2014.
+[4] R. Girshick, ‘‘Fast R-CNN,’’ in Proc. IEEE Int. Conf. Comput. Vis. (ICCV).
+Chile: IEEE, Dec. 2015, pp. 1440–1448.
+[5] S. Ren, K. He, R. Girshick, and J. Sun, ‘‘Faster R-CNN: Towards real-time
+object detection with region proposal networks,’’ in Proc. NIPS, 2016,
+pp. 1–24.
+[6] J. Redmon, S. Divvala, R. Girshick, and A. Farhadi, ‘‘You only look once:
+Unified, real-time object detection,’’ in Proc. IEEE Conf. Comput. Vis.
+Pattern Recognit. (CVPR). NV, USA: IEEE, Jun. 2016, pp. 779–788.
+[7] W. Liu, D. Anguelov, D. Erhan, C. Szegedy, S. Reed, C.-Y. Fu, and
+A. C. Berg, ‘‘SSD: Single shot MultiBox detector,’’ in Computer Vision—
+ECCV. Cham, Switzerland: Springer, 2016, pp. 21–37.
+[8] J. Yang, ‘‘A review of single-stage vehicle detection algorithms in deep
+learning,’’ Comput. Eng. Appl., vol. 58, pp. 55–67, Apr. 2022.
+[9] A. Bochkovskiy, C.-Y. Wang, and H.-Y. Mark Liao, ‘‘YOLOv4: Optimal
+speed and accuracy of object detection,’’ 2020, arXiv:2004.10934.
+[10] C. Li, L. Li, H. Jiang, K. Weng, Y. Geng, L. Li, Z. Ke, Q. Li, M. Cheng,
+W. Nie, Y. Li, B. Zhang, Y. Liang, L. Zhou, X. Xu, X. Chu, X. Wei,
+and X. Wei, ‘‘YOLOv6: A single-stage object detection framework for
+industrial applications,’’ 2022, arXiv:2209.02976.
+[11] C.-Y. Wang, A. Bochkovskiy, and H.-Y.-M. Liao, ‘‘YOLOv7: Trainable
+bag-of-freebies sets new state-of-the-art for real-time object detectors,’’ in
+Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR), Jun. 2023,
+pp. 7464–7475.
+[12] C.-Y. Wang, I.-H. Yeh, and H.-Y. Mark Liao, ‘‘YOLOv9: Learning what
+you want to learn using programmable gradient information,’’ 2024,
+arXiv:2402.13616.
+[13] A. Wang, H. Chen, L. Liu, K. Chen, Z. Lin, J. Han, and G. Ding,
+‘‘YOLOv10:
+Real-time
+end-to-end
+object
+detection,’’
+2024,
+arXiv:2405.14458.
+[14] Y. Song, S. Hong, C. Hu, P. He, L. Tao, Z. Tie, and C. Ding, ‘‘MEB-YOLO:
+An efficient vehicle detection method in complex traffic road scenes,’’
+Comput., Mater. Continua, vol. 75, no. 3, pp. 5761–5784, 2023.
+[15] Z. Huang, J. Wang, X. Fu, T. Yu, Y. Guo, and R. Wang, ‘‘DC-SPP-YOLO:
+Dense connection and spatial pyramid pooling based YOLO for object
+detection,’’ Inf. Sci., vol. 522, pp. 241–258, Jun. 2020.
+[16] H. Wang, Y. Xu, Y. He, Y. Cai, L. Chen, Y. Li, M. A. Sotelo, and
+Z. Li, ‘‘YOLOv5-Fog: A multiobjective visual detection algorithm for fog
+driving scenes based on improved YOLOv5,’’ IEEE Trans. Instrum. Meas.,
+vol. 71, pp. 1–12, 2022.
+[17] A. A. Alsanabani, S. A. Saeed, M. Al-Mkhlafi, and M. Albishari, ‘‘A low
+cost and real time vehicle detection using enhanced YOLOv4-tiny,’’ in
+Proc. IEEE Int. Conf. Artif. Intell. Comput. Appl. (ICAICA), Jun. 2021,
+pp. 372–377.
+[18] J. Feng and C. Yi, ‘‘Lightweight detection network for arbitrary-oriented
+vehicles in UAV imagery via global attentive relation and multi-path
+fusion,’’ Drones, vol. 6, no. 5, p. 108, Apr. 2022.
+[19] G. Guo and Z. Zhang, ‘‘Road damage detection algorithm for improved
+YOLOv5,’’ Sci. Rep., vol. 12, no. 1, p. 15523, Sep. 2022.
+[20] H. Wei, X. Liu, S. Xu, Z. Dai, Y. Dai, and X. Xu, ‘‘DWRSeg: Rethinking
+efficient acquisition of multi-scale contextual information for real-time
+semantic segmentation,’’ 2022, arXiv:2212.01173.
+[21] W. Liu, H. Lu, H. Fu, and Z. Cao, ‘‘Learning to upsample by learning to
+sample,’’ 2023, arXiv:2308.15085.
+[22] Z. Ge, S. Liu, F. Wang, Z. Li, and J. Sun, ‘‘YOLOX: Exceeding YOLO
+series in 2021,’’ 2021, arXiv:2107.08430.
+[23] X. Xu, Y. Jiang, W. Chen, Y. Huang, Y. Zhang, and X. Sun,
+‘‘DAMO-YOLO: A report on real-time object detection design,’’ 2023,
+arXiv:2211.15444.
+[24] C. Wang, ‘‘Gold-YOLO: Efficient object detector via gather-and-distribute
+mechanism,’’ in Proc. Adv. Neural Inf. Process. Syst., vol. 36, Dec. 2023,
+pp. 51094–51112.
+[25] T. Cheng, L. Song, Y. Ge, W. Liu, X. Wang, and Y. Shan, ‘‘YOLO-
+world: Real-time open-vocabulary object detection,’’ presented at the Proc.
+IEEE/CVF Conf. Comput. Vis. Pattern Recognit., Aug. 2024.
+[26] Z. Wang, C. Li, H. Xu, and X. Zhu, ‘‘Mamba YOLO: SSMs-based YOLO
+for object detection,’’ 2024, arXiv:2406.05835.
+[27] Y. Di, S. L. Phung, J. Van Den Berg, J. Clissold, and A. Bouzerdoum, ‘‘TP-
+YOLO: A lightweight attention-based architecture for tiny pest detection,’’
+in Proc. IEEE Int. Conf. Image Process. (ICIP), Oct. 2023, pp. 3394–3398.
+[28] Z. Chen, L. Cao, and Q. Wang, ‘‘YOLOv5-based vehicle detection method
+for high-resolution UAV images,’’ Mobile Inf. Syst., vol. 2022, pp. 1–11,
+May 2022.
+VOLUME 12, 2024
+136295
+
+--- Page 17 ---
+X. Liu et al.: YOLOv8-FDD: A Real-Time Vehicle Detection Method Based on Improved YOLOv8
+[29] P. Zhang, H. Deng, and Z. Chen, ‘‘RT-YOLO: A residual feature fusion
+triple attention network for aerial image target detection,’’ Comput., Mater.
+Continua, vol. 75, no. 1, pp. 1411–1430, 2023.
+[30] Y. Li, J. Wang, J. Huang, and Y. Li, ‘‘Research on deep learning automatic
+vehicle recognition algorithm based on RES-YOLO model,’’ Sensors,
+vol. 22, no. 10, p. 3783, May 2022.
+[31] D. Padilla Carrasco, H. A. Rashwan, M. Á. García, and D. Puig, ‘‘T-YOLO:
+Tiny vehicle detection based on YOLO and multi-scale convolutional
+neural networks,’’ IEEE Access, vol. 11, pp. 22430–22440, 2023.
+[32] T. Yin, W. Chen, B. Liu, C. Li, and L. Du, ‘‘Light ‘you only look once’:
+An improved lightweight vehicle-detection model for intelligent vehicles
+under dark conditions,’’ Mathematics, vol. 12, no. 1, p. 124, Dec. 2023.
+[33] S.-B. Wang, Z.-M. Gao, D.-H. Jin, S.-M. Gong, G.-L. Peng, and Z.-J. Yang,
+‘‘AMEA-YOLO: A lightweight remote sensing vehicle detection algorithm
+based on attention mechanism and efficient architecture,’’ J. Supercomput.,
+vol. 80, no. 8, pp. 11241–11260, May 2024.
+[34] L. Kang, Z. Lu, L. Meng, and Z. Gao, ‘‘YOLO-FA: Type-1 fuzzy attention
+based YOLO detector for vehicle detection,’’ Expert Syst. Appl., vol. 237,
+Mar. 2024, Art. no. 121209.
+[35] M.-A. Chung, Y.-J. Lin, and C.-W. Lin, ‘‘YOLO-SLD: An attention
+mechanism-improved YOLO for license plate detection,’’ IEEE Access,
+vol. 12, pp. 89035–89045, 2024.
+[36] Z. Tian, C. Shen, H. Chen, and T. He, ‘‘FCOS: Fully convolutional
+one-stage object detection,’’ 2019, arXiv:1904.01355.
+[37] C. Feng, Y. Zhong, Y. Gao, M. R. Scott, and W. Huang, ‘‘TOOD: Task-
+aligned one-stage object detection,’’ presented at the Proc. IEEE/CVF Int.
+Conf. Comput. Vis. (ICCV), Oct. 2021.
+[38] X. Ding, X. Zhang, J. Han, and G. Ding, ‘‘Scaling up your kernels to
+31×31: Revisiting large kernel design in CNNs,’’ presented at the Proc.
+IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR), Jun. 2022.
+[39] D. Bolya, S. Foley, J. Hays, and J. Hoffman, ‘‘TIDE: A general toolbox for
+identifying object detection errors,’’ in Computer Vision—ECCV. Cham,
+Switzerland: Springer, 2020, pp. 558–573.
+XIAOJIA LIU was born in 1979. She received the
+bachelor’s and master’s degrees from Chongqing
+Jiaotong University, in 2001 and 2004, respec-
+tively, and the Ph.D. degree in engineering from
+Tongji University, in 2007. She is currently work-
+ing as an Associate Professor with Jimei Univer-
+sity. Her teaching and research interests include
+urban transportation planning and management,
+urban transportation decision-making, and control
+technology.
+YIPENG WANG was born in 2000. He received
+the Bachelor of Engineering degree from East
+China Jiaotong University, in 2022. He is currently
+pursuing the degree with Jimei University. His
+research interests include intelligent transportation
+systems, deep learning, and computer vision. He is
+full of love and interest in deep learning, engaged
+in research in the direction of vehicle detection
+and its downstream tasks, and committed to traffic
+safety and management.
+DEXIN YU was born in 1972. He received the
+B.S. degree from Southwest Jiaotong University,
+in 1995, the M.S. and Ph.D. degrees from the
+School of Transportation, Jilin University, and the
+Ph.D. degree in 2006. Currently, he is teaching
+with the School of Navigation, Jilin University. His
+teaching and research interests include intelligent
+transportation systems and transportation system
+analysis.
+ZIMIN YUAN is a graduate student from Jimei
+University. His research area of vehicle inspection.
+136296
+VOLUME 12, 2024

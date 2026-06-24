@@ -1,0 +1,691 @@
+--- Page 1 ---
+(IJACSA) International Journal of Advanced Computer Science and Applications, 
+Vol. 14, No. 4, 2023 
+8 | P a g e  
+www.ijacsa.thesai.org 
+An Automatic Framework for Number Plate 
+Detection using OCR and Deep Learning Approach 
+Yash Shambharkar1, Shailaja Alagrama2, Kanhaiya Sharma3, Om Mshra4, Deepak Parashar5 
+Symbiosis Institute of Technology Pune, Symbiosis International (Deemed) University, Pune, India1,3,4,5 
+Computer Information System, University of the Cumberland’s, Williamsburg, Kentucky, USA2 
+ 
+ 
+Abstract—The use of automatic number plate detection 
+devices in safety, commercial, and security has increased over the 
+past few years. Number plate detection using computer vision is 
+used to provide fast and accurate detection and recognition. 
+Lately, many computerized approaches have been developed for 
+the identification of vehicle registration details based on license 
+plate numbers using either Deep Learning (DL) methodologies. 
+In the proposed framework, we used Optical Character 
+Recognition (OCR) and a deep learning-based new approach for 
+automatic number plate detection and recognition.  A deep 
+learning approach trains the model to recognize the vehicle. The 
+vehicle registration plate area is cropped adequately from the 
+image, and a Convolution Neural Network (CNN) uses OCR to 
+identify numbers and letters. The Jetson TX2 NVIDIA target 
+served as the model's training data source, and its performance 
+has been tested on a public dataset from Kaggle database. We 
+obtained the highest accuracy of 96.23%. The proposed system 
+could recognize vehicle license plate numbers on real-world 
+images. The system can be implemented at security checkpoint 
+entrances in highly restricted areas such as military areas or 
+areas surrounding high-level government agencies. 
+Keywords—Number plat detection; recognition; deep learning; 
+OCR; image classification 
+I. 
+INTRODUCTION 
+Automatic number plate Detection is also known as license 
+plate detection or vehicle registration plate detection. It uses 
+image processing technology to extract the registration plate 
+from digital images or video [1]. Afterward, the information 
+stored can be used to find various new models, some of which 
+could be transaction gateways or traffic violation systems. 
+Taking the context of a real-life problem into consideration, in 
+practical applications, researchers have to deal with a variety of 
+challenges, such as registration plate type, textual font, 
+registration plate color and font, registration plate location, and 
+environmental conditions such as lighting and weather. License 
+plates become challenging to recognize. License plate formats 
+vary from country to country: Different colors, languages, and 
+fonts. Some plates have a different colored border than the 
+background surrounding the plate, and some have a plain 
+background, which indirectly adds challenges to capturing and 
+recognizing car plates [2]. Variations in environmental 
+conditions, such as lighting and image background, also affect 
+the license plate recognition rate. Several studies have been 
+proposed earlier. 
+YOLO is a unified model for object recognition [1]. This 
+model can be built and trained directly on full frames. In 
+contrast to classifier-based approaches, YOLO is introduced 
+with a loss function that directly corresponds to recognition 
+performance, and the entire model is prepared together. Fast 
+YOLO is the fastest general-purpose object detector in the 
+literature, and YOLO advances state of art in real-time object 
+detection. YOLO also generalizes to new domains, making it 
+ideal for applications that rely on fast and robust object 
+detection. Authors discuss the detection of a registration plate 
+for a person who does not wear a helmet in [3]. The two-
+wheeler operator must have a helmet for his safety. In this 
+study, they proposed a real-time detection of number plates 
+using YOLO, for which they deployed the CNN layer. The 
+accuracy of the model was 95.5%. 
+In [4], they DL method was proposed for vehicle detection 
+using R-CNN and faster R-CNN, in which they tested and 
+trained their model. The model has three steps: data 
+acquisition, CNN design, and R-CNN. The mean average 
+precision (map) values from faster R-CNN and R-CNN were 
+approximately 0.73, 0.76, and 0.64, and 0.65, respectively. 
+Another one had an overall accuracy of 94.98%. [5], proposed 
+a deep learning model using an Image AI library for training. 
+The model consists of four steps: video acquisition, detection 
+of a vehicle, registration plate detection, and then registration 
+plate character recognition. The model’s accuracy was 96% for 
+plate localization and 90% for character recognition was 90%. 
+In [6], firstly, they made the image acquisition, after which 
+they used pre-processing techniques like RGB to grayscale 
+conversion, noise removal, and image banalization. For 
+registration plate extraction, used Sobel’s edge detection [7]. 
+After that, the characters are segmented using the CNN layer 
+for character recognition. The model had an overall accuracy 
+of 95%. In [8] they proposed a highly accurate trained model 
+for both registration plate detection and recognition [9]. The 
+whole model was prepared by sharing a convolution layer with 
+the above features. The proposed system had an accuracy of 
+94% for a jointly trained model. In [10], a framework for 
+character detection using a differentiable binary process is 
+presented. In [11], a framework requires text extraction from 
+an input digital image in which the image has been processed 
+and filtered thoroughly. They used the CV2 OpenCV library in 
+Python for pre-processing and Tesseract for character 
+recognition. Real-time plate detection was performed on a 
+Bangla dataset [12]. For character recognition, the proposed 
+model employed a CNN layer. The dataset used had a sample 
+size of 5500, and the accuracy of successful recognition was 
+90.90% in a real-time study. In [13-14], YOLO is used for 
+object detection. They trained and fine-tuned the CNN layer 
+for each stage, then did the segmentation part. The SSIG 
+dataset, which contained 2000 frames from 101 videos, was 
+
+--- Page 2 ---
+(IJACSA) International Journal of Advanced Computer Science and Applications, 
+Vol. 14, No. 4, 2023 
+9 | P a g e  
+www.ijacsa.thesai.org 
+used. The system had an accuracy of 93.53% with 47 frames 
+per second. In [15], 18] a kernel that was partially restricted 
+was focused on with the help of direct blind deconvolution and 
+denoising with CNN on a real-time blur image that was 
+acquired from a traffic surveillance system used a neural 
+network that was trained on artificial data. They used deep 
+learning mode [19]-[28], which includes image acquisition, 
+plate detection, segmentation, and character recognition. The 
+data set was the Turkish vehicle license plate dataset, which 
+consists of real-world images obtained from a security 
+surveillance camera. Unlike other countries, India, with a 
+population of 1 billion, has a unique need for ANPRs. ANPR's 
+primary uses are highway monitoring, parking lot management, 
+and neighborhood law enforcement safety. Existing literature 
+says that in India, within every four minutes, one person dies, 
+and surprisingly, most of them are because of over-speeding. 
+ANPR monitors the average speed of vehicles, and vehicle 
+owner information can identify vehicles violating the traffic 
+rules. In this case, e-challans can be automatically generated 
+for the penalized plate owner. This helps maintain law and 
+order, which in turn minimizes traffic fatalities. ANPR 
+provides the best solution for giving parking management. 
+Vehicles with registered license plates are automatically 
+allowed into the parking area, but unregistered vehicles will be 
+charged at check-in and check-out. According to the study, 
+approximately 200,000 cars are stolen annually in India. This 
+number can be reduced by taking appropriate measures and 
+using this model to track vehicles. This allows law 
+enforcement agencies to determine when, where, and through 
+which route the stolen vehicle is stolen, if vehicle is stolen. 
+This allows us to bring justice to such a powerhouse quickly. 
+The main objectives of the proposed system are as follows. (1) 
+To understand ANPR and apply it to a license plate recognition 
+system. (2) To improve the performance of the number plate 
+detection system using OCR and DL approach. (3) The 
+proposed system efficiently used for detection and recognition 
+of vehicle number plate. 
+The study is organized as follows: Section I provide the 
+literature review on problem formulation and various existing 
+methodologies; Section II describes the proposed procedures. 
+Following that, in Section III, the results are analyzed and 
+discussed. Section IV explains the conclusion and future scope. 
+II. 
+PROPOSED METHOD 
+Fig. 1 depicts the proposed framework of number plate 
+detection in four essential parts: a dataset, license plate 
+detection, segmentation, and OCR. Modern rural, urban, and 
+national highway networks have proliferated in recent decades. 
+This created the need to monitor and manage traffic on the road 
+efficiently. The primary goal of this study is to train a model to 
+recognize and identify license plates from their images 
+correctly. Different countries have different characteristics of 
+license plates, such as their number system, colors, sign 
+language, style (font), and size of a license plate, so further 
+research is needed. 
+Deep learning (DL) is a branch of Machine Learning (ML), 
+and ML is a subset of Artificial Intelligence (AI) 
+that mimics the 
+way 
+humans acquire certain kinds of 
+knowledge. Deep learning is a critical component of data 
+science, including statistics 
+and 
+predictive models. It 
+benefits data 
+scientists 
+who must 
+collect, 
+analyze, and interpret large amounts of data. Deep Learning 
+makes this process faster and easier. At its simplest, DL can be 
+thought of as a way to automate predictive analytics. While 
+traditional ML algorithms are linear, DL algorithms are built 
+up in increasing 
+complexity 
+and 
+abstraction 
+layers. 
+A 
+shallow CNN quickly scans the test image and eliminates most 
+sample windows. In the proposed approach, authors have used 
+four layers to predict number plates. In the first layer, the 
+number plate detection work is done; in the second and third 
+layers, region extraction is calculated; and in the last layer, 
+OCR is used. The automatic framework for number plate 
+detection using OCR and deep learning architectures is shown 
+in Fig. 2. 
+A. Dataset 
+The desired unit where deep learning problems fail is a 
+need for a public dataset. As we know that, the wrong data sets 
+can produce inaccurate or incorrect results. So, we need to 
+ensure that there are no similarities between the content of a 
+dataset other than its essential characteristics. Because India is 
+a large country, hence need to consider all the contexts and 
+ensure that the given dataset is well-balanced without favoring 
+or disfavoring any entity, such as vehicle type or license plate 
+layout. Firstly, the vehicle types present on the streets of a 
+typical Indian city are cars, two-wheelers, buses, trucks, and 
+pickups. So, every type of vehicle has its own format for 
+displaying the registration plate. For example, most cars have 
+one line of plates, but some people prefer a layout with two 
+lines of plates. Registration plates belonging to Indians can be 
+single-row or double-row and most two- and three-wheeler 
+registration plates are two lines, but their layout differs. The 
+font on both sides is also different, with some 3-wheeler auto 
+rickshaw uses paint rather than printing the number plate. So 
+here we found the basic first step in license plate recognition is 
+to collect a database. In the proposed work dataset is 
+downloaded from the Kaggle website, which includes license 
+plates with significant variations in registration numbers 
+collected by kaggle.com.  Total of 4326  were trained on our 
+model to identify the number plate and had used deep learning 
+strategies as you can see in the Table I. It represents us the type 
+of vehicle that were been trained as you can see the dataset is 
+not biased as all type of vehicle are been taken into account. 
+B. Preprocessing 
+When images are acquired at this stage and passed to the 
+algorithm for further testing and prediction, Image pre-
+processing is one of the crucial stages for any computer vision 
+system. So, the main objective of this image pre-processing is 
+to recognize the image and collect information regarding the 
+image, which can be used in further processing [7]. Image pre-
+processing changes the operation performed on a non-
+figurative object. The primary goal is to improve image 
+information to extract the necessary information from that 
+image. Fig. 3 shows sample images from the custom dataset for 
+experimental work. 
+
+--- Page 3 ---
+(IJACSA) International Journal of Advanced Computer Science and Applications, 
+Vol. 14, No. 4, 2023 
+10 | P a g e  
+www.ijacsa.thesai.org 
+ 
+Fig. 1. The block diagram of proposed methodology. 
+ 
+Fig. 2. An automatic framework for number plate detection using OCR and deep learning architecture. 
+C. Number Plat Detection 
+Most countries around the world have registration plates 
+that are shaped like a rectangle. Moreover, the registration 
+plate comes in different shapes and layouts in India. 
+Sometimes it is seen that a two-wheeler uses a trapezoidal 
+plate. In terms of size, the average size of the plate varies by 
+vehicle, with the average size for cars being 500×120 mm and 
+for motorcycles being 200×100 mm [11]. Three-wheeled 
+vehicles such as an auto rickshaw have tiny plate painted 
+mainly by a painter. Taking all the points into context, we put 
+all the registration plates into a rectangular box. As shown in 
+Fig. 2, the image of the car with the highlighted number plate is 
+in the green-colored rectangular box. Fig. 4 shows the 
+detection of registration plat. 
+The result uses a thresh holding algorithm on the number 
+plate, and because of this thresh holding method, the plates are 
+being segmented at a higher level. These thresholds help us 
+recognize the character correctly. 
+D. Charactor Recognition 
+As discussed earlier, the main issue with character 
+recognition is that there are many types and categories of the 
+font used in the plate. So, the best way to train our desired 
+model is to check for letters and digits to cover different 
+typefaces, including those used in painted panels. Here, we 
+used OCR for character recognition. The recognized and 
+segmented character can be trained with our custom-built 
+dataset for training and testing purposes. 
+A corresponding file was created for training and testing 
+with a valid dataset of 4326 images. So, after all the model 
+training, we figured out that our model is about 95% accurate 
+at the detection range of the license plate and fails only when 
+the license plate is a little smaller in size as compared to the 
+standard plate size or when similar plates are present in the 
+tested image. 
+
+--- Page 4 ---
+(IJACSA) International Journal of Advanced Computer Science and Applications, 
+Vol. 14, No. 4, 2023 
+11 | P a g e  
+www.ijacsa.thesai.org 
+ 
+  
+ 
+ 
+ 
+Fig. 3. Sample images from the custom dataset for experimental work. 
+Now let's check how the OCR works. The attributes are 
+extracted from the sample image. These features can be 
+preferred as follows: (1) Distance to the wall (DTW): The 
+calculation for such is based on active pixels. They are the 
+highest intensity value possible, depending on the image 
+format. For example, in an 8-bit grayscale format, the 
+maximum level is 255; to calculate that, it is divided into 12 
+regions (4 rows x 3 columns). And the activated pixel is 
+calculated concerning the horizontal and vertical areas within 
+each region. (2) Cross-Time Feature (CTF): This feature 
+includes the six widest white-to-black and black-to-white 
+transitions across the character horizontally and vertically. The 
+six widest shifts are computed for every row and column of 
+character candidates. These intersections are sorted, and the 
+first three rows and columns with the highest and lowest 
+changes are saved along with their positions. (3) Active Region 
+Ratio (ARR): The region is divided into four rows and three 
+columns, respectively, and the area of active pixels is chosen as 
+a critical feature for the block. (4) Height to Width Ratio 
+(HWR): When talking about HWR, alphanumeric symbols for 
+any language have been bifurcated into three types, namely, 
+those with more extensive and equivalent height and width. 
+Table I depicted describes the count of vehicle. 
+The positive score represents the character, and the 
+negative score represents the non-character symbol within the 
+plate. Optical character recognition has been around for the last 
+80 years. However, large technology companies initially were 
+the primary developers of products that recognized optical [18] 
+characters. Advances in machine learning and deep learning 
+have enabled individual researchers to develop algorithms and 
+techniques that can more accurately identify handwritten 
+manuscripts. We also see more and more researchers using -
+convolutional 
+neural 
+networks 
+(CNNs) 
+to 
+recognize 
+handwritten and machine-printed characters. This is since 
+CNN-based architectures are well suited for recognition tasks 
+where the input is an image. CNN’s were initially used for 
+object detection tasks in images. ImageNet Large Scale Visual 
+Recognition Challenge (ILSVRC) is commonly used CNN-
+based architectures for visual recognition tasks. 
+
+--- Page 5 ---
+(IJACSA) International Journal of Advanced Computer Science and Applications, 
+Vol. 14, No. 4, 2023 
+12 | P a g e  
+www.ijacsa.thesai.org 
+ 
+ 
+ 
+ 
+Fig. 4. Detection of registration plate in rectangular boxes. 
+TABLE I.  
+DESCRIBES THE COUNT OF VEHICLE 
+Type of 
+vehicle 
+Type of license plate 
+Font of license plate 
+Two 
+– 
+Wheeler 
+(300) 
+Printed (375) 
+Single line (273) 
+Multiline (102) 
+Painted (125) 
+Single line (89) 
+Multiline (36) 
+Three 
+– 
+Wheeler 
+(637) 
+Printed (157) 
+Single line (61) 
+Multiline (96) 
+Painted (480) 
+Single line (86) 
+Multiline (394) 
+Car 
+(2963) 
+Printed (2957) 
+Single line (2873) 
+Multiline (84) 
+Painted (6) 
+Single line (2) 
+Multiline (4) 
+Truck 
+& 
+pickup 
+(426) 
+Printed (82) 
+Single line (2) 
+Multiline (80) 
+Painted (344) 
+Single line (60) 
+Multiline (284) 
+TABLE II.  
+EXISTING METHOD FOR REGISTRATION PLATE DETECTION & 
+RECOGNITION 
+Actual Registration 
+plate 
+Predicted 
+Registration 
+Plate  
+Mismatched 
+Recognition  
+Accuracy  
+P3RV P 
+P3RV P 
+0 
+900% 
+KL BOSS 
+KL 8OSS 
+1 
+84% 
+DL49 AK49 
+DL49 AK49 
+0 
+89% 
+DZI7 YXR 
+DZI7 YXR 
+0 
+85% 
+Mh 14 Gn 9239 
+Mh il Gn 9239 
+2 
+80% 
+III. 
+RESULT AND DISCUSSION 
+The proposed system evaluates the car image from a given 
+dataset. The most crucial factor in solving deep learning 
+problems has an accurate dataset that is unbiased, because of 
+which it produces inaccurate or skewed outcomes. It is 
+necessary to ensure no similarities between the items in the 
+dataset other than the characteristic of interest. After that, we 
+came to the training part of the data set. We considered 4326 
+sample images and trained the model to detect the license plate. 
+The results of OCR based approach are shown in Fig. 5. The 
+captured registration plate is processed for letter segmentation. 
+Separated characters are recognized using OCR (Optical 
+Character Recognition). After which, the essences extracted 
+from the registration plate are stored in an Excel spreadsheet. 
+Table II shows the sample test cases on the real-time dataset. 
+
+--- Page 6 ---
+(IJACSA) International Journal of Advanced Computer Science and Applications, 
+Vol. 14, No. 4, 2023 
+13 | P a g e  
+www.ijacsa.thesai.org 
+ 
+ 
+ 
+ 
+Fig. 5. Results of OCR approach to detect number plate. 
+TABLE III.  
+COMPARISION WITH EXISTING METHDOS FOR NUMBER PLATE 
+DETECTION AND RECOGNITION 
+Method/Ref. 
+Accuracy (%) 
+Detection 
+Recognition 
+YOLO, Response surface 
+methodology (RSM) [5] 
+97 % 
+90 % 
+CNN, TensorFlow [16] 
+96.36% 
+93% 
+YOLO, CNN, Edge Detection [6] 
+94% 
+91% 
+RGB Scaling, CNN[9] 
+97% 
+94% 
+YOLO v3 
+91% 
+91% 
+Deep CNN [20] 
+98.1% 
+88.1% 
+Deep CNN, 
+Fast RCNN [18] 
+99% 
+91% 
+RCNN, SVM, 
+ANN [17] 
+94.4% 
+96% 
+RANSAC, 
+SVM [16] 
+91.4% 
+91.4 
+RESNET, 
+RCNN [3] 
+94.98% 
+92% 
+Proposed Method   
+100% (Vehicle 
+Detection) 
+95% (License Plate 
+Detection) 
+96.23% 
+The Table II clearly shows that a minimum of 80% 
+accurate result can be obtained; in some cases, even 100% 
+accurate prediction is achieved. Table III compares the 
+proposed method’s performance and existing literature. It can 
+be concluding from the Table III that the proposed method 
+performs far better than the existing method. 
+IV. 
+CONCLUSION 
+This study shows that in the presence of anomalies, the 
+performance of deep learning techniques is relatively better and 
+beneficial in the process of ANPR as per India’s conditions. 
+Authors represented the entire end-to-end ANPR and noticed 
+multiple lines of LP, non-uniform padding, plate shapes, fonts, 
+and non-uniform font sizes. This presented a complete end-to-
+end pipeline for ANPR. For LPD, we proposed a model that 
+works well in India and also introduced an alternate method for 
+CR networks suitable for the Indian situation. Our LPD model 
+achieved 96.23% accuracy with a detection threshold of 0.5, 
+which only dropped because it has a 98% accuracy rate for 
+small license plates on cars and buses and a total loss of less 
+than 10% with a learning rate of 92%. The proposed network 
+showed a high average accuracy of 94.9%, including multiline 
+panels, and predicted 93.7% of the characters with a higher 
+confidence level than 90%. ANPR can identify vehicle owners, 
+vehicle model identification, traffic voltage and control, and 
+vehicle location tracking. This model can be further extended 
+as a multilingual ANPR to automatically identify the language 
+of the characters based on the training data. 
+REFERENCES 
+[1] J. Redmon, S. Divvala, R. Girshick and A. Farhadi, "You Only Look 
+Once: Unified, Real-Time Object Detection," 2016 IEEE Conference on 
+Computer Vision and Pattern Recognition (CVPR), Las Vegas, NV, 
+USA, 2016, pp. 779-788, doi: 10.1109/CVPR.2016.91. 
+[2] S.S. Nadiminti, P.K. Gaur, and A. Bhardwaj, “Exploration of an End-to-
+End Automatic Number plate Recognition neural network for Indian 
+datasets”, Computer 
+Science, 
+Environmental 
+Science 
+2022,doi: 
+https://doi.org/10.48550/arXiv.2207.06657. 
+[3] Abdullah Asım Yılmaz, Mehmet Serdar Guzel, İman Askerbeyli, Erkan 
+Bostanci, “A Vehicle Detection Approach using Deep Learning 
+Methodologies”, International Conference on Theoretical and Applied 
+Computer Science and Engineering (ICTACSE), Ankara, 2018. 
+[4] V Gnanaprakash, N kanthimathi, N Saranya, “Automatic number plate 
+recognition using deep learning”, IOP Conference Series: Materials 
+Science and Engineering, First International Conference on Circuits, 
+Signals, Systems and Securities (ICCSSS 2020), December 2020, Tamil 
+Nadu, India. 2021, doi: 10.1088/1757-899X/1084/1/012027. 
+[5] S. Saunshi, V. Sahani, J. Patil, A. Yadav, S. Rathi, “License Plate 
+Recognition Using Convolutional Neural Network”, IOSR Journal of 
+Computer Engineering, vol. 1, pp. 28-33, 2017. 
+[6] P. Ravirathinam and A. Patawari, "Automatic License Plate Recognition 
+for Indian Roads Using Faster-RCNN," 2019 11th International 
+Conference on Advanced Computing (ICoAC), Chennai, India, 2019, pp. 
+275-281, doi: 10.1109/ICoAC48765.2019.246853. 
+[7] H. Li, P. Wang and C. Shen, "Toward End-to-End Car License Plate 
+Detection and Recognition With Deep Neural Networks," in IEEE 
+Transactions on Intelligent Transportation Systems, vol. 20, no. 3, pp. 
+1126-1136, March 2019, doi: 10.1109/TITS.2018.2847291. 
+[8] Z. Selmi, M. Ben Halima and A. M. Alimi, "Deep Learning System for 
+Automatic License Plate Detection and Recognition," 2017 14th IAPR 
+International Conference on Document Analysis and Recognition 
+(ICDAR), 
+Kyoto, 
+Japan, 
+2017, 
+pp. 
+1132-1138, 
+doi: 
+10.1109/ICDAR.2017.187. 
+[9] Minghui Liao, Zhaoyi Wan, Cong Yao, Kai Chen, Xiang Bai1, “Real-
+time 
+Scene 
+Text 
+Detection 
+with 
+Differentiable 
+Binarization”, 
+Proceedings of the AAAI Conference on Artificial Intelligence, 2019, 
+doi: 10.1609/aaai.v34i07.6812. 
+[10] R. R. Palekar, S. U. Parab, D. P. Parikh and V. N. Kamble, "Real time 
+license plate detection using openCV and tesseract," 2017 International 
+Conference on Communication and Signal Processing (ICCSP), 
+Chennai, 
+India, 
+2017, 
+pp. 
+2111-2115, 
+doi: 
+10.1109/ICCSP.2017.8286778. 
+
+--- Page 7 ---
+(IJACSA) International Journal of Advanced Computer Science and Applications, 
+Vol. 14, No. 4, 2023 
+14 | P a g e  
+www.ijacsa.thesai.org 
+[11]  M. Atikuzzaman, M. Asaduzzaman and M. Z. Islam, "Vehicle Number 
+Plate Detection and Categorization Using CNNs," 2019 International 
+Conference on Sustainable Technologies for Industry 4.0 (STI), Dhaka, 
+Bangladesh, 2019, pp. 1-5, doi: 10.1109/STI47673.2019.9068049.. 
+[12] Rayson Laroca, Evair Severo, Luiz A. Zanlorensi, Luiz S. Oliveira, 
+Gabriel Resende Gonc¸alves, William Robson Schwartz and David 
+Menotti, “A robust real-time automatic license plate recognition based 
+on the yolo detector”, International Joint Conference on Neural 
+Networks 
+(IJCNN) 
+At: 
+Rio 
+de 
+Janeiro, 
+Brazil, 
+2018, 
+http://dx.doi.org/10.1109/IJCNN.2018.8489629 
+[13] Y. Yuan, W. Zou, Y. Zhao, X. Wang, X. Hu and N. Komodakis, "A 
+Robust and Efficient Approach to License Plate Detection," in IEEE 
+Transactions on Image Processing, vol. 26, no. 3, pp. 1102-1114, March 
+2017, doi: 10.1109/TIP.2016.2631901.  
+[14] P. Svoboda, M. Hradiš, L. Maršík and P. Zemcík, "CNN for license 
+plate motion deblurring," 2016 IEEE International Conference on Image 
+Processing (ICIP), Phoenix, AZ, USA, 2016, pp. 3832-3836, doi: 
+10.1109/ICIP.2016.7533077.  
+[15] R. Panahi and I. Gholampour, "Accurate Detection and Recognition of 
+Dirty Vehicle Plate Numbers for High-Speed Applications," in IEEE 
+Transactions on Intelligent Transportation Systems, vol. 18, no. 4, pp. 
+767-779, April 2017, doi: 10.1109/TITS.2016.2586520.  
+[16] Muhammad Aasim Rafique, Witold Pedrycz, Moongu Jeon, “Vehicle 
+license plate detection using region-based convolutional neural 
+networks”, Soft Computing - A Fusion of Foundations, Methodologies 
+and Applications, vol. 22(19), pp 6429–644, 2018, doi: 10.1007/s00500-
+017-2696-2. 
+[17] Chaowei Cheng, Liye Mei and Junhua Zhang, “License Plate 
+Recognition via Deep Convolutional Neural Network”, 2018 IOP Conf. 
+Ser.: Earth Environ. Sci. 189 062030, 2018, doi: 10.1088/1755-
+1315/189/6/062030. 
+[18]  I. Kilic and G. Aydin, "Turkish Vehicle License Plate Recognition 
+Using Deep Learning," 2018 International Conference on Artificial 
+Intelligence and Data Processing (IDAP), Malatya, Turkey, 2018, pp. 1-
+5, doi: 10.1109/IDAP.2018.8620744. 
+[19] Li Zou,Meng Zhao ,  Zhengzhong Gao,Maoyong Cao,Huarong Jia and 
+Mingtao Pei,“ License Plate Detection with Shallow and Deep CNNs in 
+Complex Environments”, Complexity, vol. 2018, pp 1-6, 2018, doi: 
+10.1155/2018/7984653 
+[20]  A. Patel C. Patel, and D. Shah, “Automatic Number Plate Recognition 
+System (ANPR): A Survey”, International Journal of Computer 
+Applications, vol. 69 (9), pp. 0975 – 8887, 2013, doi: 10.5120/11871-
+7665. 
+[21]  S. Mercy, I. Muthulakshmi, “Automatic number plate recognition using 
+connected component analysis algorithm”International”, Journal For 
+Technological Research In Engineering, vol. 5 (7), 2018. 
+[22]  V. Jain et al., "Deep automatic license plate recognition system." 
+Proceedings of the Tenth Indian Conference on Computer Vision, 
+Graphics and Image Processing. ACM, pp, 1-6, 2016, doi: 
+10.1145/3009977.3010052. 
+[23]  Z. Selmi, M. Ben Halima and A. M. Alimi, "Deep Learning System for 
+Automatic License Plate Detection and Recognition," 2017 14th IAPR 
+International Conference on Document Analysis and Recognition 
+(ICDAR), 
+Kyoto, 
+Japan, 
+2017, 
+pp. 
+1132-1138, 
+doi: 
+10.1109/ICDAR.2017.187. 
+[24]  D. Yao, W. Zhu, Y. Chen and L. Zhang, "Chinese license plate 
+character recognition based on convolution neural network," 2017 
+Chinese Automation Congress (CAC), Jinan, China, 2017, pp. 1547-
+1552, doi: 10.1109/CAC.2017.8243013. 
+[25]  M. Z. Abedin, A. C. Nath, P. Dhar, K. Deb and M. S. Hossain, "License 
+plate recognition system based on contour properties and deep learning 
+model," 2017 IEEE Region 10 Humanitarian Technology Conference 
+(R10-HTC), Dhaka, Bangladesh, 2017, pp. 590-593, doi: 10.1109/R10-
+HTC.2017.8289029. 
+[26]  L. Xie, T. Ahmad, L. Jin, Y. Liu and S. Zhang, "A New CNN-Based 
+Method for Multi-Directional Car License Plate Detection," in IEEE 
+Transactions on Intelligent Transportation Systems, vol. 19, no. 2, pp. 
+507-517, Feb. 2018, doi: 10.1109/TITS.2017.2784093.. 
+[27] W. Zhang, Y. Mao, Y. Han, “SLPNet: Towards End-to-End Car License 
+Plate Detection and Recognition Using Lightweight CNN” Pattern 
+Recognition and Computer Vision. PRCV 2020. Lecture Notes in 
+Computer Science, vol. 12306, 2020, doi:10.1007/978-3-030-60639-
+8_25. 
+[28]  Y. Jamtsho, P. Riyamongkol, R. Waranusast, “Real-time Bhutanese 
+license plate localization using YOLO”, ICT Express, vol. 6, pp. 121-
+124, 2020, doi: https://doi.org/10.1016/j.icte.2019.11.001. 
+ 
+ 
+ 
