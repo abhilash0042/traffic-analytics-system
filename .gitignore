@@ -23,6 +23,17 @@ output/*
 output_video.mp4
 results_log.json
 
+# Kaggle pack artifacts (upload zip manually — too large for git)
+dist/*.zip
+dist/*.log
+dist/*.err
+balance_*.txt
+balance_*.log
+balance_*.err
+repair_balance.*
+restore.*
+finish_balance.log
+
 # OS / IDE
 .DS_Store
 Thumbs.db

@@ -1,0 +1,35 @@
+KAGGLE UPLOAD — Traffic Helmet Balanced Dataset
+================================================
+
+UPLOAD THESE TO KAGGLE:
+-----------------------
+
+1) DATASET (required)
+   File: C:\projects\traffic-analytics-system\dist\helmet_detection_kaggle.zip
+   Kaggle slug: traffic-helmet-balanced
+
+2) NOTEBOOK (import on Kaggle)
+   File: C:\projects\traffic-analytics-system\notebooks\kaggle_helmet_training.ipynb
+
+3) WEIGHTS (optional — continue from partial model)
+   File: C:\projects\traffic-analytics-system\models\helmet_detector.pt
+   Kaggle slug: traffic-helmet-weights
+
+ZIP CONTENTS:
+  helmet_detection/data.yaml
+  helmet_detection/train/images/  (40764 images)
+  helmet_detection/train/labels/  (40764 labels)
+  helmet_detection/valid/images/  (253 images)
+  helmet_detection/valid/labels/  (253 labels)
+  helmet_detection/test/images/   (123 images)
+  helmet_detection/test/labels/   (123 labels)
+
+KAGGLE STEPS:
+  1. Create -> Dataset -> upload helmet_detection_kaggle.zip
+  2. Create -> Notebook -> import kaggle_helmet_training.ipynb
+  3. Settings -> GPU T4, Internet ON
+  4. Add Input -> traffic-helmet-balanced
+  5. Save & Run All
+  6. Download helmet_detector.pt -> models/helmet_detector.pt
+
+Full guide: docs/KAGGLE_HELMET_TRAINING.md

@@ -55,12 +55,14 @@ def detect_helmet_violation(helmet_model, frame, vehicle_bbox, confidence: float
             continue
         names = result.names
         for box in result.boxes:
-            cls_name = str(names.get(int(box.cls[0]), "")).lower()
-            if any(token in cls_name for token in ("no_helmet", "without", "no helmet", "no-helmet")):
+            cls_id = int(box.cls[0])
+            cls_name = str(names.get(cls_id, cls_id)).lower()
+            # 2-class model: 0=helmet, 1=no_helmet
+            if cls_id == 1 or any(token in cls_name for token in ("no_helmet", "no helmet", "no-helmet", "without")):
                 saw_no_helmet = True
-            elif "helmet" in cls_name:
+            elif cls_id == 0 or "helmet" in cls_name:
                 saw_helmet = True
-            elif any(token in cls_name for token in ("rider", "person", "bike", "motor")):
+            elif any(token in cls_name for token in ("rider", "person", "bike", "motor", "head")):
                 saw_rider = True
 
     if saw_no_helmet:
@@ -181,6 +183,9 @@ def main():
             plate_text = ""
             if anpr is not None:
                 plate_text = anpr.update_track(track_id, frame, (x1, y1, x2, y2), frame_count)
+                if pipeline_cfg.get("draw_plate_boxes", True) and hasattr(anpr, "get_track_boxes"):
+                    for plate_box in anpr.get_track_boxes(track_id):
+                        anpr.draw_plate_box(frame, plate_box)
                 anpr.draw_plate(frame, plate_text, (x1, y2))
 
             helmet_violation = False

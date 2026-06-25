@@ -293,7 +293,7 @@ def download_from_roboflow(
     from roboflow import Roboflow
 
     print(f"\nDownloading: {dataset_name}")
-    print(f"  Source: {workspace}/{project} v{version}")
+    print(f"  Source: {workspace}/{project}")
     print(f"  Target: {save_dir}")
 
     os.makedirs(save_dir, exist_ok=True)
@@ -305,7 +305,17 @@ def download_from_roboflow(
     try:
         rf = Roboflow(api_key=api_key)
         project_obj = rf.workspace(workspace).project(project)
-        project_obj.version(version).download("yolov8", location=save_dir, overwrite=True)
+        versions = project_obj.versions()
+        available = [int(v.version) for v in versions]
+        if not available:
+            raise RuntimeError("No dataset versions found")
+        use_version = version if version in available else max(available)
+        if use_version != version:
+            print(f"  [>>] Version {version} unavailable — using latest v{use_version}")
+        else:
+            print(f"  [>>] Using version v{use_version}")
+        print(f"  Resolved: {workspace}/{project} v{use_version}")
+        project_obj.version(use_version).download("yolov8", location=save_dir, overwrite=True)
         count_after, size_mb = folder_stats(save_dir)
         ok(f"Downloaded {count_after} files ({size_mb:.1f} MB)")
         return True
@@ -530,6 +540,37 @@ def download_helmets(api_key: str | None = None, use_hf: bool = True) -> bool:
     return False
 
 
+def download_helmets_extra(api_key: str | None = None) -> bool:
+    """Download larger Indian traffic helmet+plate combo into staging for merge."""
+    if not api_key or not check_roboflow_installed():
+        warn("Roboflow API key required for extra Indian helmet data")
+        print("  Set ROBOFLOW_API_KEY in .env then re-run")
+        return False
+
+    save_dir = os.path.join(DATA_DIR, "helmet_detection_extra")
+    ok_count = 0
+    for key in ("helmet_and_plates_combo", "license_plates_roboflow"):
+        cfg = ROBOFLOW_DATASETS[key]
+        # Download into subfolder per source
+        target = os.path.join(save_dir, key)
+        if download_from_roboflow(
+            api_key,
+            cfg["workspace"],
+            cfg["project"],
+            cfg["version"],
+            target,
+            cfg["name"],
+        ):
+            ok_count += 1
+
+    if ok_count:
+        ok(f"Extra helmet sources ready under {save_dir}")
+        print("  Merge into main dataset:")
+        print("  python scripts/prepare_helmet_indian.py --merge-extra")
+        return True
+    return False
+
+
 def download_vehicles(api_key: str) -> bool:
     cfg = ROBOFLOW_DATASETS["vehicle_detection"]
     return download_from_roboflow(
@@ -575,6 +616,11 @@ def main() -> None:
     parser.add_argument("--setup", action="store_true", help="Create folder structure only")
     parser.add_argument("--plates", action="store_true", help="License plate dataset")
     parser.add_argument("--helmets", action="store_true", help="Helmet detection dataset")
+    parser.add_argument(
+        "--helmets-extra",
+        action="store_true",
+        help="Extra Indian helmet datasets (Roboflow) into helmet_detection_extra/",
+    )
     parser.add_argument("--vehicles", action="store_true", help="Optional UA-DETRAC 10K sample")
     parser.add_argument("--videos", action="store_true", help="Sample traffic videos")
     parser.add_argument("--manual", action="store_true", help="Manual browser instructions")
@@ -618,6 +664,13 @@ def main() -> None:
         api_key = get_roboflow_api_key(interactive=False)
         download_helmets(api_key, use_hf=True)
         verify_datasets()
+        return
+
+    if args.helmets_extra:
+        ensure_dirs()
+        load_env_credentials()
+        api_key = get_roboflow_api_key(interactive=False)
+        download_helmets_extra(api_key)
         return
 
     if args.vehicles:
