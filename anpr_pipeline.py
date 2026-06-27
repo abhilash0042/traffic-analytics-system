@@ -25,6 +25,18 @@ _OCR_DIGIT_FIX = str.maketrans({"O": "0", "Q": "0", "I": "1", "L": "1", "Z": "2"
 _OCR_LETTER_FIX = str.maketrans({"0": "O", "1": "I", "5": "S", "8": "B", "6": "G"})
 
 
+def _use_ocr_gpu(config: dict[str, Any]) -> bool:
+    anpr_cfg = config.get("anpr", {})
+    if "use_gpu" in anpr_cfg:
+        return bool(anpr_cfg["use_gpu"])
+    try:
+        from model_utils import resolve_inference_device
+
+        return str(resolve_inference_device(config)) != "cpu"
+    except ImportError:
+        return False
+
+
 @dataclass
 class PlateReading:
     text: str
@@ -52,7 +64,8 @@ class LegacyOCREngine:
             for pattern in anpr_cfg.get("plate_patterns", [])
         ]
         languages = anpr_cfg.get("ocr_languages", ["en"])
-        self.reader = easyocr.Reader(languages, gpu=False, verbose=False)
+        use_gpu = _use_ocr_gpu(config)
+        self.reader = easyocr.Reader(languages, gpu=use_gpu, verbose=False)
         self.track_states: dict[int, TrackPlateState] = defaultdict(TrackPlateState)
 
     def normalize_text(self, text: str) -> str:
@@ -132,6 +145,16 @@ class ANPREngine:
         plate_cfg = config["models"]["plate"]
         pipeline_cfg = config.get("pipeline", {})
 
+        try:
+            from model_utils import resolve_inference_device
+
+            self.device = resolve_inference_device(config)
+        except ImportError:
+            self.device = 0
+
+        self._enhanced_frame: np.ndarray | None = None
+        self._enhanced_frame_number = -1
+
         self.confidence = float(plate_cfg.get("confidence", 0.28))
         self.confidence_fallback = float(plate_cfg.get("detect_conf_fallback", 0.15))
         self.detect_imgsz = int(plate_cfg.get("detect_imgsz", 960))
@@ -156,8 +179,16 @@ class ANPREngine:
 
         self.prep = prep_cfg
         languages = anpr_cfg.get("ocr_languages", ["en"])
-        self.reader = easyocr.Reader(languages, gpu=False, verbose=False)
+        use_gpu = _use_ocr_gpu(config)
+        self.reader = easyocr.Reader(languages, gpu=use_gpu, verbose=False)
         self.track_states: dict[int, TrackPlateState] = defaultdict(self._new_track_state)
+
+    def begin_frame(self, frame_number: int, frame: np.ndarray) -> None:
+        """Enhance each video frame once (not once per tracked vehicle)."""
+        if frame_number == self._enhanced_frame_number and self._enhanced_frame is not None:
+            return
+        self._enhanced_frame_number = frame_number
+        self._enhanced_frame = self.enhance_frame_for_detection(frame)
 
     def _new_track_state(self) -> TrackPlateState:
         return TrackPlateState(votes=deque(maxlen=self.vote_window))
@@ -325,6 +356,7 @@ class ANPREngine:
             search,
             conf=confidence,
             imgsz=self.detect_imgsz,
+            device=self.device,
             verbose=False,
         )
 
@@ -401,7 +433,9 @@ class ANPREngine:
         if frame_number % self.ocr_every_n != 0:
             return state.best_text
 
-        detect_frame = self.enhance_frame_for_detection(frame)
+        detect_frame = self._enhanced_frame
+        if detect_frame is None:
+            detect_frame = self.enhance_frame_for_detection(frame)
         region = vehicle_bbox if self.use_vehicle_crop else None
         plate_boxes = self.detect_plates_in_region(detect_frame, region)
 

@@ -1,0 +1,46 @@
+KAGGLE UPLOAD — Traffic Vehicle Detection (UA-DETRAC 10K)
+============================================================
+
+WHY TRAIN THIS FIRST:
+  Better car / bus / truck / van boxes -> cleaner vehicle crops -> better plate & tracking.
+  Motorcycles still detected via COCO fallback (yolo11s) until you extend the dataset.
+
+UPLOAD THESE TO KAGGLE:
+-----------------------
+
+1) DATASET (required)
+   File: C:\projects\traffic-analytics-system\dist\vehicle_detection_kaggle.zip
+   Kaggle slug: traffic-vehicle-balanced
+
+   Create zip (if missing):
+     python scripts/pack_vehicle_for_kaggle.py
+
+2) NOTEBOOK
+   File: C:\projects\traffic-analytics-system\notebooks\kaggle_vehicle_training.ipynb
+
+3) WEIGHTS (optional — continue from checkpoint)
+   File: C:\projects\traffic-analytics-system\models\vehicle_detector.pt
+   Kaggle slug: traffic-vehicle-weights
+
+ZIP CONTENTS:
+  vehicle_detection/data.yaml
+  vehicle_detection/train/images/  (20409 images)
+  vehicle_detection/train/labels/  (20409 labels)
+  vehicle_detection/valid/images/  (1939 images)
+  vehicle_detection/valid/labels/  (1939 labels)
+  vehicle_detection/test/images/   (971 images)
+  vehicle_detection/test/labels/   (971 labels)
+
+KAGGLE STEPS:
+  1. Create -> Dataset -> upload vehicle_detection_kaggle.zip
+  2. Create -> Notebook -> import kaggle_vehicle_training.ipynb
+  3. Settings -> GPU T4 x2 if available else T4, Internet ON
+  4. Add Input -> traffic-vehicle-balanced
+  5. Save Version -> Save & Run All (expect ~4–8 hours for 100 epochs)
+  6. Download vehicle_detector.pt -> models/vehicle_detector.pt
+
+LOCAL TRAINING (RTX 4050):
+  python scripts/prepare_vehicle_dataset.py
+  python train_models.py --vehicles
+
+Full guide: docs/KAGGLE_VEHICLE_TRAINING.md

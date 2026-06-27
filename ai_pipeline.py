@@ -16,7 +16,14 @@ from deep_sort_realtime.deepsort_tracker import DeepSort
 from ultralytics import YOLO
 
 from anpr_pipeline import ANPREngine, LegacyOCREngine
-from model_utils import has_finetuned_model, load_config, resolve_model_path, resolve_path
+from model_utils import (
+    has_finetuned_model,
+    inference_device_label,
+    load_config,
+    resolve_inference_device,
+    resolve_model_path,
+    resolve_path,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 
@@ -39,13 +46,88 @@ def expand_bbox(x1: int, y1: int, x2: int, y2: int, frame_shape, padding: float 
     )
 
 
-def detect_helmet_violation(helmet_model, frame, vehicle_bbox, confidence: float) -> tuple[bool, str]:
+# UA-DETRAC fine-tuned IDs -> pipeline IDs (COCO-compatible for tracking / helmet)
+FINETUNED_VEHICLE_TO_PIPELINE = {
+    0: 5,  # bus
+    1: 2,  # car
+    2: 7,  # truck
+    3: 8,  # van (not COCO; avoids clashing with motorcycle=3)
+}
+
+
+def collect_vehicle_detections(
+    frame,
+    vehicle_model: YOLO,
+    vehicle_source: str,
+    vehicle_cfg: dict,
+    moto_model: YOLO | None,
+    device: str | int,
+) -> list[list]:
+    """Return DeepSORT detections: [[x,y,w,h], conf, cls_id]."""
+    detections: list[list] = []
+    conf = float(vehicle_cfg.get("confidence", 0.35))
+
+    if vehicle_source == "fine-tuned":
+        ft_classes = vehicle_cfg.get("finetuned_classes", [0, 1, 2, 3])
+        results = vehicle_model.predict(
+            frame,
+            classes=ft_classes,
+            conf=conf,
+            device=device,
+            verbose=False,
+        )
+        for result in results:
+            for box in result.boxes:
+                x1, y1, x2, y2 = box.xyxy[0].tolist()
+                cls_id = int(box.cls[0])
+                pipeline_cls = FINETUNED_VEHICLE_TO_PIPELINE.get(cls_id, cls_id)
+                detections.append(
+                    [[x1, y1, x2 - x1, y2 - y1], float(box.conf[0]), pipeline_cls]
+                )
+
+        if vehicle_cfg.get("motorcycle_fallback", True) and moto_model is not None:
+            moto_conf = float(vehicle_cfg.get("motorcycle_confidence", 0.32))
+            moto_results = moto_model.predict(
+                frame,
+                classes=[3],
+                conf=moto_conf,
+                device=device,
+                verbose=False,
+            )
+            for result in moto_results:
+                for box in result.boxes:
+                    x1, y1, x2, y2 = box.xyxy[0].tolist()
+                    detections.append(
+                        [[x1, y1, x2 - x1, y2 - y1], float(box.conf[0]), 3]
+                    )
+    else:
+        coco_classes = vehicle_cfg.get("classes", [2, 3, 5, 7])
+        results = vehicle_model.predict(
+            frame,
+            classes=coco_classes,
+            conf=conf,
+            device=device,
+            verbose=False,
+        )
+        for result in results:
+            for box in result.boxes:
+                x1, y1, x2, y2 = box.xyxy[0].tolist()
+                detections.append(
+                    [[x1, y1, x2 - x1, y2 - y1], float(box.conf[0]), int(box.cls[0])]
+                )
+
+    return detections
+
+
+def detect_helmet_violation(
+    helmet_model, frame, vehicle_bbox, confidence: float, device: str | int = 0
+) -> tuple[bool, str]:
     x1, y1, x2, y2 = vehicle_bbox
     crop = frame[y1:y2, x1:x2]
     if crop.size == 0:
         return False, ""
 
-    results = helmet_model.predict(crop, conf=confidence, verbose=False)
+    results = helmet_model.predict(crop, conf=confidence, device=device, verbose=False)
     saw_rider = False
     saw_helmet = False
     saw_no_helmet = False
@@ -80,8 +162,18 @@ def main():
     pipeline_cfg = config["pipeline"]
     tracking_cfg = config["tracking"]
     vehicle_cfg = config["models"]["vehicle"]
+    device = resolve_inference_device(config)
+    use_cuda = str(device) != "cpu"
+
+    print(f"Inference device: {inference_device_label(device)}")
 
     vehicle_model, vehicle_source, _ = load_yolo_model(vehicle_cfg, "vehicle detector")
+
+    moto_model = None
+    if vehicle_source == "fine-tuned" and vehicle_cfg.get("motorcycle_fallback", True):
+        moto_path = resolve_path(vehicle_cfg.get("fallback", "weights/yolo11s.pt"))
+        moto_model = YOLO(str(moto_path))
+        print(f"  Motorcycle detect: {moto_path.name} (COCO fallback for helmet pipeline)")
 
     plate_model = None
     anpr = None
@@ -124,8 +216,6 @@ def main():
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     out = cv2.VideoWriter(str(output_path), fourcc, fps, (width, height))
 
-    vehicle_classes = vehicle_cfg.get("classes", [2, 3, 5, 7])
-    vehicle_conf = float(vehicle_cfg.get("confidence", 0.35))
     helmet_conf = float(config["models"]["helmet"].get("confidence", 0.45))
     log_every = int(pipeline_cfg.get("log_every_n_frames", 30))
 
@@ -144,22 +234,20 @@ def main():
         frame_count += 1
         detections = []
 
-        results = vehicle_model.predict(
+        detections = collect_vehicle_detections(
             frame,
-            classes=vehicle_classes,
-            conf=vehicle_conf,
-            verbose=False,
+            vehicle_model,
+            vehicle_source,
+            vehicle_cfg,
+            moto_model,
+            device,
         )
-
-        for result in results:
-            for box in result.boxes:
-                x1, y1, x2, y2 = box.xyxy[0].tolist()
-                conf = float(box.conf[0])
-                cls_id = int(box.cls[0])
-                detections.append([[x1, y1, x2 - x1, y2 - y1], conf, cls_id])
 
         tracks = tracker.update_tracks(detections, frame=frame)
         frame_logs = []
+
+        if anpr is not None and hasattr(anpr, "begin_frame"):
+            anpr.begin_frame(frame_count, frame)
 
         for track in tracks:
             if not track.is_confirmed():
@@ -196,6 +284,7 @@ def main():
                     frame,
                     (x1, y1, x2, y2),
                     helmet_conf,
+                    device=device,
                 )
                 if helmet_label:
                     color = (0, 0, 255) if helmet_violation else (255, 165, 0)

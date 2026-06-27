@@ -12,7 +12,7 @@ Major project built with **YOLO11** fine-tuning, **DeepSORT** tracking, and **Ea
 
 | Module | Method | Status |
 |---|---|---|
-| Vehicle detection | YOLO11 + COCO transfer learning | Pipeline ready |
+| Vehicle detection | YOLO11 + UA-DETRAC fine-tuning | **Train next** — see `docs/KAGGLE_VEHICLE_TRAINING.md` |
 | Object tracking | DeepSORT (persistent IDs) | Pipeline ready |
 | License plate detection | YOLO11 fine-tuned on Indian plates | **Trained — 98.3% mAP50** |
 | Helmet detection | YOLO11 fine-tuned on Roboflow dataset | Training next |
@@ -95,7 +95,8 @@ Full guide: [`docs/TRAINING_PLAN.md`](docs/TRAINING_PLAN.md)
 python train_models.py --status
 python train_models.py --plates      # done — 98.3% val mAP50
 python train_models.py --helmets
-python train_models.py --vehicles
+python train_models.py --vehicles    # local RTX 4050 (~3–5 h)
+# Or Kaggle GPU: docs/KAGGLE_VEHICLE_TRAINING.md
 ```
 
 - Pause anytime: `Ctrl+C`

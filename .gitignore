@@ -39,6 +39,8 @@ finish_balance.log
 Thumbs.db
 .idea/
 .vscode/
+notebooks/output_helmant
+output/analysis_frames/
 
 # Optional: keep PDFs local only (extracted text is in docs/paper_texts/)
 docs/papers/*.pdf

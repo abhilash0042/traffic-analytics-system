@@ -9,9 +9,11 @@
 # Hardware profile: RTX 4050 (~6 GB VRAM) — batch sizes tuned below
 
 paths:
-  video_input: assets/videos/sample_video.mp4
-  # For ANPR testing use a clip with visible plates, e.g.:
-  # video_input: data/datasets/sample_videos/traffic_clip_1.mp4
+  # Indian traffic / helmet demo (YouTube Short, portrait 478x850)
+  video_input: data/datasets/sample_videos/helmant_demovedio.mp4
+  # video_input: data/datasets/sample_videos/sample_traffic_cctv.mp4
+  # video_input: data/datasets/sample_videos/sample_traffic_highway.mp4
+  # video_input: assets/videos/sample_video.mp4   # old placeholder (~6 MB, sparse traffic)
   video_output: output/output_video.mp4
   results_log: output/results_log.json
   models_dir: models
@@ -24,7 +26,12 @@ models:
     pretrained: weights/yolo11m.pt
     fallback: weights/yolo11s.pt
     confidence: 0.35
-    classes: [2, 3, 5, 7]  # car, motorcycle, bus, truck (COCO)
+    # COCO class IDs — used when no fine-tuned vehicle_detector.pt exists
+    classes: [2, 3, 5, 7]  # car, motorcycle, bus, truck
+    # Fine-tuned UA-DETRAC classes: 0=bus, 1=car, 2=truck, 3=van
+    finetuned_classes: [0, 1, 2, 3]
+    motorcycle_fallback: true       # COCO yolo11s for bikes (helmet pipeline)
+    motorcycle_confidence: 0.32
 
   plate:
     finetuned: models/plate_detector.pt
@@ -109,10 +116,18 @@ training:
     epochs: 100
     imgsz: 640
     batch: 8
-    patience: 4
+    patience: 15
     close_mosaic: 10
     project: traffic_analytics
     name: vehicle_detector
+    # UA-DETRAC / Indian highway & urban traffic augmentation
+    hsv_h: 0.015
+    hsv_s: 0.70
+    hsv_v: 0.50
+    degrees: 5.0
+    translate: 0.12
+    scale: 0.45
+    fliplr: 0.5
     # After first vehicle train, refine with: python train_models.py --vehicles --continue-best
 
   # RTX 5060 upgrade profile (uncomment and swap when available):
@@ -157,10 +172,13 @@ preprocessing:
   video_clahe_clip: 3.0
 
 pipeline:
+  device: 0                     # inference GPU (RTX 4050); use "cpu" to force CPU
   enable_anpr: true
   enable_helmet: true
   anpr_on_vehicle_crop: true
   vehicle_crop_padding: 0.15    # wider search around vehicle
-  video_enhance_for_anpr: true  # denoise + CLAHE before plate detect
+  video_enhance_for_anpr: true  # denoise + CLAHE before plate detect (CPU-heavy)
   draw_plate_boxes: true        # show plate bounding boxes on output video
   log_every_n_frames: 30
+  # Real-time CCTV target (~15–25 FPS on RTX 4050): enable_anpr false OR set anpr.ocr_every_n_frames: 5,
+  # preprocessing.enable_video_enhance: false, anpr.multi_variant_ocr: false, use yolo11s/n helmet weights.

@@ -97,3 +97,35 @@ def ensure_models_dir(config: dict[str, Any] | None = None) -> Path:
     models_dir = resolve_path(config["training"]["models_dir"])
     models_dir.mkdir(parents=True, exist_ok=True)
     return models_dir
+
+
+def resolve_inference_device(config: dict[str, Any]) -> str | int:
+    """GPU device for live inference (pipeline). Falls back to CPU if CUDA unavailable."""
+    pipeline_device = config.get("pipeline", {}).get("device")
+    training_device = config.get("training", {}).get("device")
+    device = pipeline_device if pipeline_device is not None else training_device
+    if device in (None, "cpu", -1, "-1"):
+        return "cpu"
+
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            return device if device != "cuda" else 0
+    except ImportError:
+        pass
+    return "cpu"
+
+
+def inference_device_label(device: str | int) -> str:
+    if str(device) == "cpu":
+        return "CPU"
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            index = int(device) if device != "cuda" else 0
+            return f"CUDA:{index} ({torch.cuda.get_device_name(index)})"
+    except (ImportError, ValueError, RuntimeError):
+        pass
+    return f"device {device}"
