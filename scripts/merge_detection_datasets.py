@@ -16,7 +16,8 @@ from pathlib import Path
 
 random.seed(42)
 
-BASE = Path("c:/projects/traffic-analytics-system/data/datasets")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+BASE = PROJECT_ROOT / "data" / "datasets"
 OUTPUT = BASE / "unified_plate_detection"
 
 # Only full-vehicle-image datasets (PLATE CROPS excluded)
