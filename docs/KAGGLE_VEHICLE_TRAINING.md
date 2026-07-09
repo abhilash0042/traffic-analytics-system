@@ -162,6 +162,7 @@ models:
 
 | Problem | Fix |
 |---|---|
+| `AttributeError: torch has no attribute '_utils'` | Re-import latest `kaggle_vehicle_training.ipynb` — install cell uses `pip install ultralytics --no-deps` so Kaggle's PyTorch is not broken. Restart session, run all from top. |
 | `Dataset not found` | Check Kaggle slug; zip must contain `vehicle_detection/train/images/` |
 | CUDA OOM | Set `BATCH = 4` in notebook |
 | Session died | Download backup `vehicle_detector.pt`; re-run with `RESUME = True` |

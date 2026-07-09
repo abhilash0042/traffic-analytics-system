@@ -44,3 +44,21 @@ output/analysis_frames/
 
 # Optional: keep PDFs local only (extracted text is in docs/paper_texts/)
 docs/papers/*.pdf
+
+# Local logs and test outputs
+logs/
+*.log
+*.txt
+*.csv
+*.jpg
+*.jpeg
+*.png
+
+# Submodules and nested clones
+parseq/
+
+# Model weights
+weights/*.pth
+weights/*.onnx
+weights/*.engine
+
