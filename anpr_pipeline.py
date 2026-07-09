@@ -19,6 +19,59 @@ from typing import Any
 import cv2
 import easyocr
 import numpy as np
+try:
+    import Levenshtein
+except ImportError:
+    Levenshtein = None
+
+INDIAN_STATE_CODES = {
+    'AN','AP','AR','AS','BR','CH','CG','DD','DL','DN',
+    'GA','GJ','HR','HP','JK','JH','KA','KL','LA','LD',
+    'MP','MH','MN','ML','MZ','NL','OD','PY','PB','RJ',
+    'SK','TN','TS','TR','UP','UK','WB'
+}
+
+# Pairs that are visually similar in plate fonts
+CONFUSION_PAIRS = {
+    'M': ['C', 'N', 'H'], 'C': ['M', 'G', 'O'], 'N': ['M', 'H'], 'H': ['M', 'N'],
+    'G': ['C', '6'],
+    '9': ['1'], '1': ['9', 'I', 'L', 'T'], 'I': ['1'],
+    '0': ['O', 'D', 'Q'], 'O': ['0', 'D', 'Q'], 'D': ['0', 'O'],
+    '8': ['B'], 'B': ['8'],
+    '2': ['Z'], 'Z': ['2'],
+    '5': ['S'], 'S': ['5'],
+}
+
+def fuzzy_majority_vote(candidates: list[str]) -> str:
+    if not candidates:
+        return ""
+    
+    # Filter by realistic length
+    valid = [c for c in candidates if 6 <= len(c) <= 10]
+    if not valid:
+        valid = candidates
+        
+    if not Levenshtein:
+        return Counter(valid).most_common(1)[0][0]
+        
+    clusters = []
+    for text in valid:
+        found_cluster = False
+        for cluster in clusters:
+            # If distance <= 2, add to cluster
+            if Levenshtein.distance(text, cluster[0]) <= 2:
+                cluster.append(text)
+                found_cluster = True
+                break
+        if not found_cluster:
+            clusters.append([text])
+            
+    if not clusters:
+        return ""
+        
+    # Find largest cluster
+    largest_cluster = max(clusters, key=len)
+    return Counter(largest_cluster).most_common(1)[0][0]
 
 # Common EasyOCR confusions on Indian plates (apply in digit vs letter zones).
 _OCR_DIGIT_FIX = str.maketrans({"O": "0", "Q": "0", "I": "1", "L": "1", "Z": "2", "S": "5", "B": "8", "G": "6"})
@@ -65,7 +118,14 @@ class LegacyOCREngine:
         ]
         languages = anpr_cfg.get("ocr_languages", ["en"])
         use_gpu = _use_ocr_gpu(config)
-        self.reader = easyocr.Reader(languages, gpu=use_gpu, verbose=False)
+        try:
+            from paddleocr import PaddleOCR
+            self.reader = PaddleOCR(lang='en', device='cpu', engine='paddle_dynamic')
+            self.use_paddle = True
+        except ImportError:
+            import easyocr
+            self.reader = easyocr.Reader(languages, gpu=use_gpu, verbose=False)
+            self.use_paddle = False
         self.track_states: dict[int, TrackPlateState] = defaultdict(TrackPlateState)
 
     def normalize_text(self, text: str) -> str:
@@ -96,24 +156,39 @@ class LegacyOCREngine:
         if roi.size == 0:
             return self.track_states[track_id].best_text
 
-        results = self.reader.readtext(roi, detail=1, paragraph=False)
-        if not results:
+        if getattr(self, "use_paddle", False):
+            results = self.reader.ocr(roi)
+            parsed_results = []
+            if results:
+                for res in results:
+                    if 'rec_texts' in res and 'rec_scores' in res:
+                        for raw_text, conf in zip(res['rec_texts'], res['rec_scores']):
+                            if raw_text:
+                                parsed_results.append((None, raw_text, conf))
+        else:
+            parsed_results = self.reader.readtext(roi, detail=1, paragraph=False)
+
+        if not parsed_results:
             return self.track_states[track_id].best_text
 
-        best = max(results, key=lambda item: float(item[2]))
-        normalized = self.normalize_text(str(best[1]))
+        # Sort left-to-right and combine
+        parsed_results.sort(key=lambda x: x[0][0][0] if x[0] is not None else 0)
+        combined_text = " ".join([str(res[1]) for res in parsed_results])
+        avg_conf = sum([float(res[2]) for res in parsed_results]) / max(1, len(parsed_results))
+
+        normalized = self.normalize_text(combined_text)
         if not normalized:
             return self.track_states[track_id].best_text
 
         state = self.track_states[track_id]
         state.votes.append(normalized)
-        confidence = float(best[2])
+        confidence = avg_conf
         if confidence > state.best_confidence:
             state.best_confidence = confidence
             state.best_text = normalized
 
         if state.votes:
-            voted_text, _ = Counter(state.votes).most_common(1)[0]
+            voted_text = fuzzy_majority_vote(list(state.votes))
             if self.validate_plate(voted_text):
                 state.best_text = voted_text
         return state.best_text
@@ -180,8 +255,51 @@ class ANPREngine:
         self.prep = prep_cfg
         languages = anpr_cfg.get("ocr_languages", ["en"])
         use_gpu = _use_ocr_gpu(config)
+        import easyocr
         self.reader = easyocr.Reader(languages, gpu=use_gpu, verbose=False)
+        self.use_paddle = False
+        if anpr_cfg.get("dual_ocr", False):
+            try:
+                from paddleocr import PaddleOCR
+                self.paddle_reader = PaddleOCR(use_angle_cls=True, lang='en')
+                self.use_paddle = True
+            except ImportError:
+                print("PaddleOCR not installed, dual OCR disabled.")
+                
+        self.sr_model = None
+        if anpr_cfg.get("sr_enabled", False):
+            self._load_sr_model(anpr_cfg)
+            
         self.track_states: dict[int, TrackPlateState] = defaultdict(self._new_track_state)
+        self._last_ocr_sharpness: dict[int, float] = {}
+
+    def _load_sr_model(self, anpr_cfg: dict[str, Any]) -> None:
+        try:
+            from basicsr.archs.rrdbnet_arch import RRDBNet
+            from realesrgan import RealESRGANer
+            import torch
+            
+            model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
+            model_path = anpr_cfg.get("sr_model_path", "weights/RealESRGAN_x4plus.pth")
+            half = anpr_cfg.get("sr_half", True)
+            if str(self.device) == "cpu":
+                half = False
+                
+            self.sr_model = RealESRGANer(
+                scale=4,
+                model_path=model_path,
+                model=model,
+                tile=0,
+                tile_pad=10,
+                pre_pad=0,
+                half=half,
+                device=torch.device(self.device if self.device != "cpu" else "cpu")
+            )
+            print(f"Loaded Real-ESRGAN super-resolution model ({model_path})")
+        except ImportError:
+            print("Real-ESRGAN dependencies not found. Run: pip install realesrgan basicsr")
+        except Exception as e:
+            print(f"Failed to load Real-ESRGAN: {e}")
 
     def begin_frame(self, frame_number: int, frame: np.ndarray) -> None:
         """Enhance each video frame once (not once per tracked vehicle)."""
@@ -216,13 +334,58 @@ class ANPREngine:
         enhanced = cv2.merge([l_channel, a_channel, b_channel])
         return cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
 
+    @staticmethod
+    def sharpness_score(gray: np.ndarray) -> float:
+        return cv2.Laplacian(gray, cv2.CV_64F).var()
+
     def upscale_crop(self, crop: np.ndarray) -> np.ndarray:
         height, width = crop.shape[:2]
+        
+        # Don't upscale if it's already large enough
         if width >= self.upscale_min_width:
             return crop
+            
+        # Use Real-ESRGAN if available and crop is narrow enough
+        sr_min_width = int(self.config.get("anpr", {}).get("sr_min_width_trigger", 200))
+        if self.sr_model is not None and width < sr_min_width:
+            try:
+                output, _ = self.sr_model.enhance(crop, outscale=self.config.get("anpr", {}).get("sr_scale", 4))
+                return output
+            except Exception as e:
+                print(f"SR failed, falling back to bicubic: {e}")
+                
         scale = self.upscale_min_width / max(width, 1)
         new_size = (max(self.upscale_min_width, int(width * scale)), max(1, int(height * scale)))
         return cv2.resize(crop, new_size, interpolation=cv2.INTER_CUBIC)
+
+    def detect_plate_layout(self, gray: np.ndarray) -> tuple[str, int | None]:
+        """Detect if plate is double-row (e.g. 2-wheelers) by finding horizontal gap."""
+        h, w = gray.shape
+        # Search for gap in the middle 30% of the plate
+        search_start = int(h * 0.35)
+        search_end = int(h * 0.65)
+        
+        if search_end <= search_start:
+            return 'single', None
+            
+        # Compute horizontal projection (row sums)
+        # Apply slight blur to reduce noise
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        # Threshold to get text (assuming dark text on light background after some prep, or vice versa)
+        # Since we just want variance/edges, Sobel is better
+        sobel_y = cv2.Sobel(blurred, cv2.CV_64F, 0, 1, ksize=3)
+        abs_sobel = cv2.convertScaleAbs(sobel_y)
+        
+        row_sums = np.sum(abs_sobel[search_start:search_end, :], axis=1)
+        
+        # If there's a row with very low edge density, it's likely a gap
+        min_row_idx = np.argmin(row_sums)
+        min_val = row_sums[min_row_idx]
+        mean_val = np.mean(row_sums)
+        
+        if min_val < mean_val * 0.5: # 50% threshold for 'gap'
+            return 'double', search_start + min_row_idx
+        return 'single', None
 
     def sharpen(self, image: np.ndarray) -> np.ndarray:
         amount = float(self.prep.get("sharpen_amount", 1.2))
@@ -286,16 +449,44 @@ class ANPREngine:
     def normalize_text(self, text: str) -> str:
         return re.sub(r"[^A-Za-z0-9]", "", text.upper())
 
-    def correct_indian_plate(self, text: str) -> str:
+    def correct_indian_plate(self, text: str, confidence: float = 1.0) -> str:
         """Fix common OCR confusions using Indian plate layout (LL DD LLL DDDD style)."""
         if len(text) < 6:
             return text
 
         chars = list(text)
-        # State code + series letters
-        for idx in range(min(4, len(chars))):
-            if idx < 2 or (len(chars) > 4 and idx in (3, 4)):
-                chars[idx] = chars[idx].translate(_OCR_LETTER_FIX)
+        
+        # State code correction using valid states
+        prefix = "".join(chars[:2]).upper()
+        if prefix not in INDIAN_STATE_CODES:
+            fixed = False
+            for i in range(2):
+                original_char = prefix[i]
+                if original_char not in CONFUSION_PAIRS:
+                    continue
+                for candidate_char in CONFUSION_PAIRS[original_char]:
+                    candidate_prefix = prefix[:i] + candidate_char + prefix[i+1:]
+                    if candidate_prefix in INDIAN_STATE_CODES:
+                        chars[0] = candidate_prefix[0]
+                        chars[1] = candidate_prefix[1]
+                        fixed = True
+                        break
+                if fixed:
+                    break
+            
+            # Fallback if confusion pairs didn't work: Levenshtein distance
+            if not fixed and Levenshtein:
+                min_dist = 999
+                closest_state = None
+                for valid_code in INDIAN_STATE_CODES:
+                    dist = Levenshtein.distance(prefix, valid_code)
+                    if dist < min_dist:
+                        min_dist = dist
+                        closest_state = valid_code
+                if closest_state and min_dist <= 1:
+                    chars[0] = closest_state[0]
+                    chars[1] = closest_state[1]
+
         # Remaining positions are usually digits
         for idx in range(2, len(chars)):
             if idx in (2, 3) and len(chars) >= 8:
@@ -310,8 +501,18 @@ class ANPREngine:
     def validate_plate(self, text: str) -> bool:
         if not text or len(text) < 6:
             return False
-        if any(pattern.match(text) for pattern in self.patterns):
+            
+        matched_pattern = any(pattern.match(text) for pattern in self.patterns)
+        
+        # State code validation for Indian plates
+        if len(text) >= 2 and text[:2].isalpha():
+            state_code = text[:2]
+            if state_code not in INDIAN_STATE_CODES:
+                return False
+                
+        if matched_pattern:
             return True
+            
         if self.fuzzy_validation and len(text) >= 8 and text[:2].isalpha():
             digit_count = sum(char.isdigit() for char in text[2:])
             return digit_count >= 3
@@ -322,20 +523,33 @@ class ANPREngine:
             if crop.shape[0] < 8 or crop.shape[1] < 20:
                 return None
             crop = self.upscale_crop(crop)
-
-        best_reading: PlateReading | None = None
-        for variant in self.preprocess_variants(crop):
-            results = self.reader.readtext(variant, detail=1, paragraph=False)
-            for _box, raw_text, conf in results:
-                normalized = self.normalize_text(str(raw_text))
-                if not normalized:
-                    continue
-                corrected = self.correct_indian_plate(normalized)
-                confidence = float(conf)
-                candidate = corrected if self.validate_plate(corrected) else corrected
-                reading = PlateReading(text=candidate, confidence=confidence, raw_text=str(raw_text))
-                if best_reading is None or reading.confidence > best_reading.confidence:
-                    best_reading = reading
+            
+        gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+        layout, gap_y = self.detect_plate_layout(gray)
+        
+        if layout == 'double' and gap_y is not None:
+            # Split and OCR each row
+            row1_crop = crop[:gap_y, :]
+            row2_crop = crop[gap_y:, :]
+            
+            read1 = self._run_ocr_single_row(row1_crop)
+            read2 = self._run_ocr_single_row(row2_crop)
+            
+            if read1 and read2:
+                text = read1.text + read2.text
+                conf = (read1.confidence + read2.confidence) / 2
+                raw_text = read1.raw_text + read2.raw_text
+                reading = PlateReading(text=text, confidence=conf, raw_text=raw_text)
+            elif read1:
+                reading = read1
+            elif read2:
+                reading = read2
+            else:
+                return None
+                
+            best_reading = reading
+        else:
+            best_reading = self._run_ocr_single_row(crop)
 
         if best_reading is None:
             return None
@@ -343,13 +557,52 @@ class ANPREngine:
         if self.validate_plate(best_reading.text):
             return best_reading
 
-        if len(best_reading.text) >= 7 and any(char.isdigit() for char in best_reading.text):
+        if len(best_reading.text) >= 6 and any(char.isdigit() for char in best_reading.text):
             return PlateReading(
                 text=best_reading.text,
                 confidence=best_reading.confidence * 0.75,
                 raw_text=best_reading.raw_text,
             )
         return None
+
+    def _run_ocr_single_row(self, crop: np.ndarray) -> PlateReading | None:
+        best_reading: PlateReading | None = None
+        variants = self.preprocess_variants(crop)
+        
+        for i, variant in enumerate(variants):
+            parsed_results = self.reader.readtext(variant, detail=1, paragraph=False)
+            
+            # PaddleOCR Dual-Engine (run on variant 1 - CLAHE, or variant 0 if only 1 variant)
+            if getattr(self, "use_paddle", False) and (i == 1 or len(variants) == 1):
+                try:
+                    paddle_res = self.paddle_reader.ocr(variant, cls=False)
+                    if paddle_res and paddle_res[0]:
+                        for line in paddle_res[0]:
+                            if len(line) == 2:
+                                raw_text, conf = line[1]
+                                parsed_results.append((None, raw_text, conf))
+                except Exception as e:
+                    pass
+
+            if not parsed_results:
+                continue
+
+            # Sort left-to-right and combine text
+            parsed_results.sort(key=lambda x: x[0][0][0] if x[0] is not None else 0)
+            combined_text = " ".join([str(res[1]) for res in parsed_results])
+            avg_conf = sum([float(res[2]) for res in parsed_results]) / max(1, len(parsed_results))
+            
+            normalized = self.normalize_text(combined_text)
+            if not normalized:
+                continue
+                
+            corrected = self.correct_indian_plate(normalized, avg_conf)
+            candidate = corrected if self.validate_plate(corrected) else corrected
+            reading = PlateReading(text=candidate, confidence=avg_conf, raw_text=combined_text)
+            if best_reading is None or reading.confidence > best_reading.confidence:
+                best_reading = reading
+                    
+        return best_reading
 
     def _predict_plates(self, search: np.ndarray, confidence: float):
         return self.plate_model.predict(
@@ -445,19 +698,27 @@ class ANPREngine:
         state.last_boxes = plate_boxes
         for x1, y1, x2, y2, det_conf in plate_boxes:
             crop = frame[y1:y2, x1:x2]
-            reading = self.run_ocr(crop)
-            if reading is None:
-                continue
-
-            state.votes.append(reading.text)
-            combined_conf = reading.confidence * det_conf
-            if combined_conf > state.best_confidence:
-                state.best_confidence = combined_conf
-                state.best_text = reading.text
+            
+            # Sharpness gating
+            gray_crop = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+            sharpness = self.sharpness_score(gray_crop)
+            last_sharpness = self._last_ocr_sharpness.get(track_id, 0.0)
+            
+            if sharpness > last_sharpness or len(state.votes) == 0:
+                reading = self.run_ocr(crop)
+                if reading is None:
+                    continue
+                
+                self._last_ocr_sharpness[track_id] = sharpness
+                state.votes.append(reading.text)
+                combined_conf = reading.confidence * det_conf
+                if combined_conf > state.best_confidence:
+                    state.best_confidence = combined_conf
+                    state.best_text = reading.text
 
         if state.votes:
-            voted_text, _ = Counter(state.votes).most_common(1)[0]
-            corrected = self.correct_indian_plate(voted_text)
+            voted_text = fuzzy_majority_vote(list(state.votes))
+            corrected = self.correct_indian_plate(voted_text, state.best_confidence)
             if self.validate_plate(corrected):
                 state.best_text = corrected
 
