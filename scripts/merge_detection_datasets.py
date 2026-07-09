@@ -98,8 +98,9 @@ def process():
         f"names:\n"
         f"  0: license_plate\n"
     )
+    (OUTPUT / "data.yaml").write_text(yaml_content)
     (OUTPUT / "dataset.yaml").write_text(yaml_content)
-    print(f"\nDataset YAML written to {OUTPUT / 'dataset.yaml'}")
+    print(f"\nDataset YAML written to {OUTPUT / 'data.yaml'}")
     print(f"\nSummary:")
     print(f"  Train: {len(splits['train'])} images")
     print(f"  Val:   {len(splits['val'])} images")

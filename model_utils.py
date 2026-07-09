@@ -67,13 +67,15 @@ def find_data_yaml(dataset_dir: str | Path) -> Path | None:
     if not root.is_dir():
         return None
 
-    direct = root / "data.yaml"
-    if direct.is_file():
-        return direct
+    for name in ("data.yaml", "dataset.yaml"):
+        direct = root / name
+        if direct.is_file():
+            return direct
 
     candidates: list[Path] = []
-    for path in root.rglob("data.yaml"):
-        candidates.append(path)
+    for name in ("data.yaml", "dataset.yaml"):
+        for path in root.rglob(name):
+            candidates.append(path)
 
     if not candidates:
         return None
