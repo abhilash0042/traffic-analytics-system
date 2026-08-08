@@ -20,8 +20,6 @@ weights/*.pt
 # Pipeline outputs
 output/*
 !output/.gitkeep
-!output/vehicle_project_demo_output.mp4
-!output/vehicle_cctv_output_zone.mp4
 !output/vehicle_sample_cctv_compressed.mp4
 output_video.mp4
 results_log.json
