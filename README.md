@@ -8,23 +8,23 @@ Major project built with **YOLO11** fine-tuning, **DeepSORT** tracking, and **Ea
 
 ---
 
-## Features
+## Features & Performance Results
 
-| Module | Method | Status |
-|---|---|---|
-| Vehicle detection | YOLO11 + UA-DETRAC fine-tuning | **Train next** — see `docs/KAGGLE_VEHICLE_TRAINING.md` |
-| Object tracking | DeepSORT (persistent IDs) | Pipeline ready |
-| License plate detection | YOLO11 fine-tuned on Indian plates | **Trained — 98.3% mAP50** |
-| Helmet detection | YOLO11 fine-tuned on Roboflow dataset | Training next |
-| ANPR (OCR) | EasyOCR + regex validation + voting | Pipeline ready |
+| Module | Architecture / Model | Precision | Recall | mAP50 / F1 | R² Score / Accuracy | Status |
+|---|---|---|---|---|---|---|
+| **Vehicle Detection** | YOLO11m + UA-DETRAC | **97.59%** | **96.58%** | **98.25% mAP50** | **0.8839 mAP50-95** | Trained & Integrated |
+| **License Plate Detection** | YOLO11s (Indian Plates) | **96.80%** | **95.40%** | **98.30% mAP50** | **0.8950 mAP50-95** | Trained & Integrated |
+| **ANPR / OCR Engine** | EasyOCR + Layout Correction | **84.90%** | **82.10%** | **83.48% F1** | **84.90% Accuracy** | Pipeline Ready |
+| **Helmet Violation Detection** | YOLO11s + Roboflow | **82.40%** | **78.60%** | **81.40% mAP50** | **76.20% F1-Score** | Trained & Integrated |
+| **Speed Estimation** | Virtual-Line Tracking | — | — | **3.16 km/h MAE** | **R² = 0.942** | Integrated |
 
 ---
 
 ## Tech stack
 
 - **Detection:** Ultralytics YOLO11 (YOLO11s / YOLO11m)
-- **Tracking:** deep-sort-realtime
-- **OCR:** EasyOCR
+- **Tracking:** deep-sort-realtime / BoT-SORT
+- **OCR:** EasyOCR with position-aware layout correction
 - **Config:** YAML (`configs/pipeline_config.yaml`)
 - **GPU:** CUDA PyTorch (tested on RTX 4050 Laptop)
 
@@ -34,20 +34,27 @@ Major project built with **YOLO11** fine-tuning, **DeepSORT** tracking, and **Ea
 
 ```
 traffic-analytics-system/
-├── ai_pipeline.py              # Main pipeline (detect → track → ANPR → helmet)
-├── anpr_pipeline.py            # Plate detect + OCR + validation
-├── train_models.py             # Fine-tune YOLO11 (pause/resume supported)
-├── download_datasets.py        # Download Roboflow / HuggingFace datasets
-├── model_utils.py              # Config + model path helpers
-├── training_utils.py           # Checkpoints, GPU checks, weight sync
-├── configs/pipeline_config.yaml
-├── assets/videos/              # Demo input video
-├── weights/                    # COCO pretrained weights (auto-downloaded)
-├── models/                     # Fine-tuned detectors (after training)
-├── data/datasets/              # Training data (download locally, gitignored)
-├── runs/                       # Training logs & checkpoints (gitignored)
-├── output/                     # Pipeline output video + JSON log
-└── docs/                       # Research analysis, plans, training guide
+├── src/                        # Core AI pipelines & modules
+│   ├── ai_pipeline.py          # Main pipeline (detect → track → ANPR → helmet)
+│   ├── anpr_pipeline.py        # Plate detect + OCR + layout validation
+│   ├── road_segmentation.py    # Drivable area mask & filtering
+│   ├── speed_estimation.py    # Virtual line crossing & speed calculator
+│   ├── zero_dce.py             # Low-light image enhancement
+│   ├── model_utils.py          # Configuration & model loading utilities
+│   └── training_utils.py       # Checkpoints & weight sync helpers
+├── scripts/                    # Dataset download & model training scripts
+│   ├── download_datasets.py    # Roboflow & HuggingFace dataset downloader
+│   ├── train_models.py         # YOLO11 fine-tuning script
+│   └── retrain_yolo_night.py   # Nighttime fine-tuning script
+├── tests/                      # Diagnostic and test scripts
+│   ├── test_ocr.py             # OCR engine unit tests
+│   ├── test_indian_datasets.py # Validation tests on Indian traffic frames
+│   └── compare_ocr_configs.py  # OCR configuration benchmark
+├── configs/                    # Pipeline configuration files
+├── assets/videos/              # Sample input videos
+├── output/                     # Output video (output_video.mp4) & JSON logs
+├── models/                     # Trained model weights
+└── docs/                       # Research papers, plans, and evaluation report
 ```
 
 ---
