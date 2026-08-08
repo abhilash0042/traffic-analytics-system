@@ -21,6 +21,7 @@ weights/*.pt
 output/*
 !output/.gitkeep
 !output/output_video.mp4
+!output/vehicle_sample_cctv_compressed.mp4
 results_log.json
 
 # Kaggle pack artifacts (upload zip manually — too large for git)
