@@ -2,7 +2,7 @@ import os
 import cv2
 import yaml
 import glob
-from anpr_pipeline import ANPREngine
+from src.anpr_pipeline import ANPREngine
 
 def main():
     config_path = "configs/pipeline_config_zone.yaml"

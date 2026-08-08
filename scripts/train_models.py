@@ -25,8 +25,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from model_utils import dataset_ready, find_data_yaml, load_config, resolve_path
-from training_utils import (
+from src.model_utils import dataset_ready, find_data_yaml, load_config, resolve_path
+from src.training_utils import (
     TASK_CLI,
     TASK_KEYS,
     build_train_kwargs,

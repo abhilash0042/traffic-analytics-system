@@ -2,7 +2,7 @@ import sys
 import cv2
 import yaml
 from ultralytics import YOLO
-from anpr_pipeline import ANPREngine
+from src.anpr_pipeline import ANPREngine
 
 def main():
     if len(sys.argv) < 2:

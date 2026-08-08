@@ -20,8 +20,8 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
-from anpr_pipeline import ANPREngine, LegacyOCREngine
-from model_utils import (
+from src.anpr_pipeline import ANPREngine, LegacyOCREngine
+from src.model_utils import (
     has_finetuned_model,
     inference_device_label,
     load_config,
@@ -29,8 +29,8 @@ from model_utils import (
     resolve_model_path,
     resolve_path,
 )
-from road_segmentation import RoadSegmenter
-from speed_estimation import SpeedEstimator
+from src.road_segmentation import RoadSegmenter
+from src.speed_estimation import SpeedEstimator
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 
@@ -360,7 +360,7 @@ def main():
 
     # --- Initialize Zero-DCE Enhancer ---
     try:
-        from zero_dce import ZeroDCEEnhancer, is_dark_frame
+from src.zero_dce import ZeroDCEEnhancer, is_dark_frame
         zero_dce_enhancer = ZeroDCEEnhancer(device=device)
         print("  Zero-DCE: Enabled for low-light enhancement")
     except Exception as e:

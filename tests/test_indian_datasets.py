@@ -2,10 +2,10 @@ import os
 import cv2
 import glob
 import csv
-from anpr_pipeline import ANPREngine
-from model_utils import load_config
+from src.anpr_pipeline import ANPREngine
+from src.model_utils import load_config
 
-from ai_pipeline import load_yolo_model
+from src.ai_pipeline import load_yolo_model
 
 def main():
     # Load config and disable super-resolution since we found it hallucinates

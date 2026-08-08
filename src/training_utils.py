@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from model_utils import load_config, resolve_path
+from src.model_utils import load_config, resolve_path
 
 TASK_KEYS = ("plate", "helmet", "vehicle")
 TASK_CLI = {"plate": "plates", "helmet": "helmets", "vehicle": "vehicles"}
@@ -121,7 +121,7 @@ def build_train_kwargs(
     train_cfg = config["training"][task_key]
     defaults = config["training"].get("defaults", {})
 
-    from model_utils import find_data_yaml
+from src.model_utils import find_data_yaml
 
     data_yaml = find_data_yaml(train_cfg["dataset_dir"])
     if data_yaml is None:
@@ -224,7 +224,7 @@ def sync_finetuned_weights(
     best_path: Path | None = None,
 ) -> Path | None:
     """Copy best.pt from run folder to models/ for the pipeline."""
-    from model_utils import ensure_models_dir
+from src.model_utils import ensure_models_dir
 
     run_paths = get_run_paths(config, task_key)
     source = best_path or run_paths.best_pt

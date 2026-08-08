@@ -89,7 +89,7 @@ def main() -> None:
     if str(scripts_dir) not in sys.path:
         sys.path.insert(0, str(scripts_dir))
     from balance_helmet_dataset import balance_train, build_image_index, read_label_stats, summarize_rows
-    from model_utils import load_config, resolve_path
+from src.model_utils import load_config, resolve_path
 
     config = load_config()
     dataset_dir = resolve_path(config["training"]["helmet"]["dataset_dir"])

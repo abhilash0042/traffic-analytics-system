@@ -5,7 +5,7 @@ import torch
 import warnings
 warnings.filterwarnings('ignore')
 
-from zero_dce import ZeroDCEEnhancer
+from src.zero_dce import ZeroDCEEnhancer
 
 def test_zero_dce():
     print("Loading Zero-DCE Enhancer...")

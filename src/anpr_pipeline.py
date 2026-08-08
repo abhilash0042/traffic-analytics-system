@@ -83,7 +83,7 @@ def _use_ocr_gpu(config: dict[str, Any]) -> bool:
     if "use_gpu" in anpr_cfg:
         return bool(anpr_cfg["use_gpu"])
     try:
-        from model_utils import resolve_inference_device
+from src.model_utils import resolve_inference_device
 
         return str(resolve_inference_device(config)) != "cpu"
     except ImportError:
@@ -221,7 +221,7 @@ class ANPREngine:
         pipeline_cfg = config.get("pipeline", {})
 
         try:
-            from model_utils import resolve_inference_device
+from src.model_utils import resolve_inference_device
 
             self.device = resolve_inference_device(config)
         except ImportError:

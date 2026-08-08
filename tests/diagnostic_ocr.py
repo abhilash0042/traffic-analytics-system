@@ -1,7 +1,7 @@
 import os
 import cv2
 import easyocr
-from anpr_pipeline import ANPREngine
+from src.anpr_pipeline import ANPREngine
 import yaml
 
 def main():

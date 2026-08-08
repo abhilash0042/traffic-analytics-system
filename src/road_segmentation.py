@@ -24,7 +24,7 @@ from typing import Any
 import cv2
 import numpy as np
 
-from model_utils import resolve_path
+from src.model_utils import resolve_path
 
 
 class RoadSegmenter:
