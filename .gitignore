@@ -11,11 +11,12 @@ __pycache__/
 # Data & training artifacts (large — download/train locally)
 data/
 runs/
-models/*.pt
 
 # Pretrained weights (auto-downloaded by Ultralytics)
 weights/*.pt
 *.pt
+!models/*.pt
+!models/.gitkeep
 
 # Pipeline outputs
 output/*
