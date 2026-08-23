@@ -22,12 +22,12 @@ models:
     finetuned: models/vehicle_detector.pt
     pretrained: weights/yolo11m.pt
     fallback: weights/yolo11s.pt
-    confidence: 0.35
+    confidence: 0.20
     # COCO class IDs — used when no fine-tuned vehicle_detector.pt exists
     classes: [2, 3, 5, 7]  # car, motorcycle, bus, truck
     # Fine-tuned UA-DETRAC classes: 0=bus, 1=car, 2=truck, 3=van
     finetuned_classes: [0, 1, 2, 3]
-    motorcycle_fallback: true       # COCO yolo11s for bikes (helmet pipeline)
+    motorcycle_fallback: false       # COCO yolo11s for bikes (helmet pipeline)
     motorcycle_confidence: 0.32
 
   plate:
@@ -196,7 +196,7 @@ segmentation:
   static_roi: true                # true for fixed CCTV (run once, cache forever)
   roi_refresh_frames: 0           # 0 = never refresh; set >0 for dashcam
   warmup_frames: 15               # frames to accumulate vehicle positions before generating mask
-  filter_off_road: true           # remove detections outside road mask
+  filter_off_road: false          # remove detections outside road mask
   action_zones:
     anpr_zone_lane: 0             # run ANPR only on closest lane (0 = closest)
     helmet_zone_lanes: [0, 1]     # run helmet check on these lanes
