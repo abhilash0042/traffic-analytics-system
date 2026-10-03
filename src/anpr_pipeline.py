@@ -16,6 +16,8 @@ from collections import Counter, defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Any
 
+from src.model_utils import resolve_inference_device
+
 import cv2
 import easyocr
 import numpy as np
@@ -83,10 +85,8 @@ def _use_ocr_gpu(config: dict[str, Any]) -> bool:
     if "use_gpu" in anpr_cfg:
         return bool(anpr_cfg["use_gpu"])
     try:
-from src.model_utils import resolve_inference_device
-
         return str(resolve_inference_device(config)) != "cpu"
-    except ImportError:
+    except Exception:
         return False
 
 
@@ -221,10 +221,8 @@ class ANPREngine:
         pipeline_cfg = config.get("pipeline", {})
 
         try:
-from src.model_utils import resolve_inference_device
-
             self.device = resolve_inference_device(config)
-        except ImportError:
+        except Exception:
             self.device = 0
 
         self._enhanced_frame: np.ndarray | None = None

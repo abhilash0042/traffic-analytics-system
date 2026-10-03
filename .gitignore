@@ -64,3 +64,5 @@ weights/*.pth
 weights/*.onnx
 weights/*.engine
 
+# Temp scratch
+tmp/

@@ -129,10 +129,14 @@ All paths and hyperparameters live in `configs/pipeline_config.yaml`:
 
 | Document | Description |
 |---|---|
-| [`docs/TRAINING_PLAN.md`](docs/TRAINING_PLAN.md) | RTX 4050 training workflow, pause/resume, GPU setup |
+| [`docs/DATASET_COLLECTION_AND_RESTORATION_GUIDE.md`](docs/DATASET_COLLECTION_AND_RESTORATION_GUIDE.md) | **Master dataset collection, storage locations & 1-command download/restoration guide** |
+| [`docs/DATASET_CATALOG.md`](docs/DATASET_CATALOG.md) | Comprehensive catalog, statistics, splits, and training recipes |
+| [`docs/HF_PUBLISHING_GUIDE.md`](docs/HF_PUBLISHING_GUIDE.md) | Hugging Face Hub dataset publishing and synchronization handbook |
+| [`docs/MODELS_ARCHITECTURE_GUIDE.md`](docs/MODELS_ARCHITECTURE_GUIDE.md) | Deep learning models architecture, detector heads, and weights mapping |
+| [`docs/TRAINING_PLAN.md`](docs/TRAINING_PLAN.md) | GPU training workflow, pause/resume, GPU setup |
 | [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) | Full development phases |
 | [`docs/DATASET_STRATEGY.md`](docs/DATASET_STRATEGY.md) | Lightweight datasets vs paper corpora |
-| [`docs/RESEARCH_PAPERS_ANALYSIS.md`](docs/RESEARCH_PAPERS_ANALYSIS.md) | Six paper summaries and methodology |
+| [`docs/RESEARCH_PAPERS_ANALYSIS.md`](docs/RESEARCH_PAPERS_ANALYSIS.md) | Research paper summaries and methodology |
 
 ---
 
